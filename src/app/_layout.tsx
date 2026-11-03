@@ -9,6 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { bootstrapApp } from '@/services/bootstrapService';
 import { useAppStore } from '@/state/appStore';
 import { ErrorBoundary } from '@/ui/components/ErrorBoundary';
+import { LockGate } from '@/ui/components/LockGate';
 import { StartupGate } from '@/ui/components/StartupGate';
 import { ToastHost } from '@/ui/components/ToastHost';
 import { useForegroundRefresh } from '@/ui/hooks/useForegroundRefresh';
@@ -62,6 +63,9 @@ function AppNavigator() {
       <Stack.Screen name="category-edit" options={modal} />
       <Stack.Screen name="budget-edit" options={modal} />
       <Stack.Screen name="recurring-edit" options={modal} />
+      <Stack.Screen name="passcode" options={modal} />
+      <Stack.Screen name="import-csv" options={modal} />
+      <Stack.Screen name="backups" options={modal} />
     </Stack>
   );
 }
@@ -90,6 +94,7 @@ export default function RootLayout() {
               <AppNavigator key={language} />
               <StartupGate />
               <ToastHost />
+              <LockGate />
             </ErrorBoundary>
           </NavigationTheme>
         </AppThemeProvider>
