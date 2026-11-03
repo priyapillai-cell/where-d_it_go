@@ -97,6 +97,26 @@ export function reminderTime(occurrence: Date, daysBefore: number): Date {
   return startOfMinute(setMinutes(setHours(addDays(occurrence, -Math.max(0, daysBefore)), 9), 0));
 }
 
+/**
+ * The next reminder still in the future: for the first upcoming occurrence whose reminder time
+ * has not passed yet. Returns null for paused/ended rules or rules without a reminder.
+ */
+export function nextReminder(
+  rule: ScheduleFields & Pick<RecurringRule, 'isActive' | 'reminderDaysBefore'>,
+  now: Date,
+): { occurrence: Date; at: Date } | null {
+  if (!rule.isActive || rule.reminderDaysBefore === null) return null;
+  let after = now;
+  for (let i = 0; i < 32; i += 1) {
+    const occurrence = nextOccurrence(rule, after);
+    if (!occurrence) return null;
+    const at = reminderTime(occurrence, rule.reminderDaysBefore);
+    if (at > now) return { occurrence, at };
+    after = occurrence;
+  }
+  return null;
+}
+
 export function transactionFromRule(
   rule: RecurringRule,
   occurrence: Date,

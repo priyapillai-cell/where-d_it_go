@@ -1,10 +1,16 @@
 import { insertAccount } from '@/db/repositories/accountRepository';
+import { insertCategory } from '@/db/repositories/categoryRepository';
 import { getRecurringRule, insertRecurringRule } from '@/db/repositories/recurringRepository';
 import { listAllTransactions } from '@/db/repositories/transactionRepository';
 import type { SqlDatabase } from '@/db/sqlDatabase';
-import { makeAccount, makeRule } from '@/test/factories';
+import { makeAccount, makeCategory, makeRule } from '@/test/factories';
 import { createTestDatabase } from '@/test/nodeDatabase';
 
+import {
+  deleteRecurringRule,
+  type RecurringRuleInput,
+  saveRecurringRule,
+} from '../recurringRuleService';
 import { generateDueTransactions } from '../recurringService';
 
 let db: SqlDatabase;
@@ -67,4 +73,69 @@ it('isolates failures to the broken rule', async () => {
   const result = await generateDueTransactions(db, new Date('2026-03-10T00:00:00.000Z'));
   expect(result).toEqual({ created: 1, failedRules: 1 });
   expect((await getRecurringRule(db, 'broken'))?.lastGeneratedAt).toBeNull();
+});
+
+describe('saveRecurringRule', () => {
+  const input: RecurringRuleInput = {
+    type: 'expense',
+    amount: 5000,
+    accountId: 'acc',
+    categoryId: 'cat',
+    note: ' Gym ',
+    frequency: 'monthly',
+    interval: 1,
+    startDate: '2026-01-10T09:00:00.000Z',
+    endDate: null,
+    reminderDaysBefore: 2,
+    isActive: true,
+  };
+
+  beforeEach(async () => {
+    await insertCategory(db, makeCategory({ id: 'cat' }));
+  });
+
+  it('validates the schedule, category and account', async () => {
+    const result = await saveRecurringRule(db, {
+      ...input,
+      amount: 0,
+      categoryId: null,
+      interval: 0,
+      endDate: '2026-01-01T00:00:00.000Z',
+    });
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        amount: 'amountPositive',
+        categoryId: 'required',
+        interval: 'invalidInterval',
+        endDate: 'endBeforeStart',
+      },
+    });
+    expect(await saveRecurringRule(db, { ...input, accountId: 'nope' })).toEqual({
+      ok: false,
+      error: { accountId: 'missingAccount' },
+    });
+  });
+
+  it('keeps the watermark on edit so nothing is generated twice', async () => {
+    const created = await saveRecurringRule(db, input);
+    if (!created.ok) throw new Error('not saved');
+    expect(created.value.note).toBe('Gym');
+    await generateDueTransactions(db, new Date('2026-03-15T00:00:00.000Z'));
+    const edited = await saveRecurringRule(db, { ...input, amount: 6000 }, created.value.id);
+    expect(edited.ok && edited.value.lastGeneratedAt).toBe('2026-03-10T09:00:00.000Z');
+    await generateDueTransactions(db, new Date('2026-03-20T00:00:00.000Z'));
+    expect(await listAllTransactions(db)).toHaveLength(3);
+  });
+
+  it('deleting a rule keeps its transactions', async () => {
+    const created = await saveRecurringRule(db, input);
+    if (!created.ok) throw new Error('not saved');
+    await generateDueTransactions(db, new Date('2026-02-15T00:00:00.000Z'));
+    await deleteRecurringRule(db, created.value.id);
+    expect(await getRecurringRule(db, created.value.id)).toBeNull();
+    const txs = await listAllTransactions(db);
+    expect(txs).toHaveLength(2);
+    expect(txs.every((tx) => tx.recurringRuleId === null)).toBe(true);
+  });
 });

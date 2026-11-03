@@ -3,6 +3,7 @@ import { makeRule } from '@/test/factories';
 import {
   dueOccurrences,
   nextOccurrence,
+  nextReminder,
   occurrenceAt,
   reminderTime,
   transactionFromRule,
@@ -105,6 +106,32 @@ describe('nextOccurrence and reminders', () => {
     expect(reminderTime(new Date('2026-05-10T18:00:00.000Z'), 2).toISOString()).toBe(
       '2026-05-08T09:00:00.000Z',
     );
+  });
+});
+
+describe('nextReminder', () => {
+  const rule = makeRule({
+    frequency: 'weekly',
+    startDate: '2026-03-02T15:00:00.000Z',
+    reminderDaysBefore: 1,
+  });
+
+  it('picks the upcoming occurrence when its reminder is still ahead', () => {
+    const next = nextReminder(rule, new Date('2026-03-05T00:00:00.000Z'));
+    expect(next?.occurrence.toISOString()).toBe('2026-03-09T15:00:00.000Z');
+    expect(next?.at.toISOString()).toBe('2026-03-08T09:00:00.000Z');
+  });
+
+  it('skips to the following occurrence when the reminder time already passed', () => {
+    const next = nextReminder(rule, new Date('2026-03-08T10:00:00.000Z'));
+    expect(next?.occurrence.toISOString()).toBe('2026-03-16T15:00:00.000Z');
+  });
+
+  it('returns null without a reminder, when paused or after the end', () => {
+    const now = new Date('2026-03-05T00:00:00.000Z');
+    expect(nextReminder({ ...rule, reminderDaysBefore: null }, now)).toBeNull();
+    expect(nextReminder({ ...rule, isActive: false }, now)).toBeNull();
+    expect(nextReminder({ ...rule, endDate: '2026-03-03T00:00:00.000Z' }, now)).toBeNull();
   });
 });
 

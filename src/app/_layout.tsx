@@ -61,6 +61,7 @@ function AppNavigator() {
       <Stack.Screen name="account-edit" options={modal} />
       <Stack.Screen name="category-edit" options={modal} />
       <Stack.Screen name="budget-edit" options={modal} />
+      <Stack.Screen name="recurring-edit" options={modal} />
     </Stack>
   );
 }
