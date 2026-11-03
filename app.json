@@ -37,15 +37,20 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 160,
           "backgroundColor": "#F5F6F8",
-          "dark": { "backgroundColor": "#0F1215" }
+          "dark": {
+            "backgroundColor": "#0F1215"
+          }
         }
       ],
       "@react-native-community/datetimepicker",
       [
         "expo-local-authentication",
-        { "faceIDPermission": "Allow Pocket Ledger to use Face ID to unlock the app." }
+        {
+          "faceIDPermission": "Allow Pocket Ledger to use Face ID to unlock the app."
+        }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "expo-font"
     ]
   }
 }
