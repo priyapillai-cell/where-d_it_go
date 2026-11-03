@@ -56,6 +56,7 @@ function AppNavigator() {
     >
       <Stack.Screen name="(drawer)" options={{ headerShown: false }} />
       <Stack.Screen name="transaction" options={modal} />
+      <Stack.Screen name="transaction-filters" options={modal} />
     </Stack>
   );
 }
