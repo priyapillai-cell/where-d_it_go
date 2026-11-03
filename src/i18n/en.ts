@@ -37,6 +37,7 @@ export const en = {
     from: 'From',
     to: 'To',
     noteOptional: 'Note (optional)',
+    colorN: 'Color {{index}} of {{total}}',
     somethingWentWrong: 'Something went wrong',
     errorDetails: 'The screen hit an unexpected error. Your data is safe.',
   },
@@ -178,6 +179,7 @@ export const en = {
     defaultName: 'Cash',
     balanceA11y: '{{name}}, balance {{amount}}',
     lastAccount: 'You need at least one active account.',
+    deleted: 'Account deleted',
   },
   categories: {
     title: 'Categories',
@@ -425,6 +427,7 @@ export const en = {
     invalidInterval: 'Enter a whole number from 1 to 1000',
     endBeforeStart: 'End date must be after the first date',
     invalidNumber: 'Enter a valid number',
+    currencyLocked: 'The currency cannot change once the account has transactions',
   },
   notifications: {
     channelName: 'Reminders and budget alerts',

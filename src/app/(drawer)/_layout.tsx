@@ -12,6 +12,8 @@ const SCREENS: readonly {
 }[] = [
   { name: 'index', title: 'nav.home', icon: 'chart-donut', headerShown: false },
   { name: 'transactions', title: 'nav.transactions', icon: 'format-list-bulleted' },
+  { name: 'accounts', title: 'nav.accounts', icon: 'wallet-outline' },
+  { name: 'categories', title: 'nav.categories', icon: 'shape-outline' },
 ];
 
 export default function DrawerLayout() {

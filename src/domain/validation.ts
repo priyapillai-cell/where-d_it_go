@@ -12,7 +12,8 @@ export type ValidationCode =
   | 'missingAccount'
   | 'missingToAccount'
   | 'invalidInterval'
-  | 'endBeforeStart';
+  | 'endBeforeStart'
+  | 'currencyLocked';
 
 export type FieldErrors<K extends string> = Partial<Record<K, ValidationCode>>;
 
