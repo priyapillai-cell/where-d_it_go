@@ -60,6 +60,7 @@ function AppNavigator() {
       <Stack.Screen name="transfer" options={modal} />
       <Stack.Screen name="account-edit" options={modal} />
       <Stack.Screen name="category-edit" options={modal} />
+      <Stack.Screen name="budget-edit" options={modal} />
     </Stack>
   );
 }

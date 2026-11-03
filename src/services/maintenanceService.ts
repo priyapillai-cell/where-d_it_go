@@ -1,6 +1,7 @@
 import type { SqlDatabase } from '@/db/sqlDatabase';
 import { logger } from '@/utils/logger';
 
+import { runBudgetAlerts } from './budgetAlertService';
 import { generateDueTransactions } from './recurringService';
 
 export interface MaintenanceOptions {
@@ -16,5 +17,6 @@ export async function runMaintenance(
   const { created, failedRules } = await generateDueTransactions(db, now);
   if (created > 0 || failedRules > 0)
     logger.info(`Recurring (${source}): ${created} created, ${failedRules} failed`);
+  await runBudgetAlerts(db);
   return created;
 }

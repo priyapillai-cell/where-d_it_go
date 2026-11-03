@@ -221,7 +221,10 @@ export const en = {
     alertBody80: '{{name}}: {{percent}}% of your {{limit}} monthly budget is spent.',
     alertTitle100: 'Budget exceeded',
     alertBody100: '{{name}}: you have spent {{spent}} of {{limit}} this month.',
-    currencyNote: 'Budgets count expenses in {{currency}} accounts.',
+    currencyNote: 'Each budget only counts expenses from accounts in its own currency.',
+    currency: 'Currency',
+    deleted: 'Budget deleted',
+    notificationsOff: 'Notifications are off, so budget alerts will only show in the app.',
   },
   recurring: {
     title: 'Recurring',

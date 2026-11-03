@@ -9,7 +9,8 @@ import { setIdGenerator } from '@/utils/id';
 import { logger } from '@/utils/logger';
 
 import { registerBackgroundTasks } from './backgroundTasks';
-import { notifyDataChanged } from './dataEvents';
+import { runBudgetAlerts } from './budgetAlertService';
+import { notifyDataChanged, onDataChanged } from './dataEvents';
 import { runMaintenance } from './maintenanceService';
 
 export async function seedIfEmpty(): Promise<void> {
@@ -25,9 +26,16 @@ export async function seedIfEmpty(): Promise<void> {
   );
 }
 
+let unsubscribe: (() => void) | null = null;
+
 /** Opens and migrates the DB, seeds a first run, loads state and catches up recurring rules. */
 export async function bootstrapApp(): Promise<void> {
   setIdGenerator(() => Crypto.randomUUID());
+  unsubscribe?.();
+  unsubscribe = onDataChanged(async () => {
+    // Fire and forget: alert delivery must never delay the write that triggered it.
+    void runBudgetAlerts(await getDatabase());
+  });
   const store = useAppStore.getState();
   store.setStatus('loading');
   try {
