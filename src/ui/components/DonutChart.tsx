@@ -96,34 +96,31 @@ export function DonutChart({
 
   return (
     <View style={{ width: size, height: size }}>
-      <Svg
-        width={size}
-        height={size}
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-      >
-        <Circle
-          cx={center}
-          cy={center}
-          r={radius}
-          stroke={colors.chartTrack}
-          strokeWidth={thickness}
-          fill="none"
-        />
-        <G rotation={-90} origin={`${center}, ${center}`}>
-          {arcs.map((arc) => (
-            <Segment
-              key={arc.key}
-              radius={radius}
-              stroke={thickness}
-              color={arc.color}
-              start={arc.start}
-              length={arc.length}
-              center={center}
-            />
-          ))}
-        </G>
-      </Svg>
+      <View aria-hidden>
+        <Svg width={size} height={size}>
+          <Circle
+            cx={center}
+            cy={center}
+            r={radius}
+            stroke={colors.chartTrack}
+            strokeWidth={thickness}
+            fill="none"
+          />
+          <G transform={`rotate(-90 ${center} ${center})`}>
+            {arcs.map((arc) => (
+              <Segment
+                key={arc.key}
+                radius={radius}
+                stroke={thickness}
+                color={arc.color}
+                start={arc.start}
+                length={arc.length}
+                center={center}
+              />
+            ))}
+          </G>
+        </Svg>
+      </View>
       <View style={[StyleSheet.absoluteFill, styles.center]} pointerEvents="box-none">
         {children}
       </View>

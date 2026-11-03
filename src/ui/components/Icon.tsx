@@ -26,8 +26,7 @@ export function Icon({
       name={isIconName(name) ? name : FALLBACK}
       size={size}
       color={color}
-      accessibilityElementsHidden
-      importantForAccessibility="no"
+      aria-hidden
     />
   );
 }

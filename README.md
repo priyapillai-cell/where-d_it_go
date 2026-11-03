@@ -47,6 +47,17 @@ Without local toolchains, build a development client in the cloud:
 npx eas-cli@latest build --profile development --platform ios|android
 ```
 
+### Web preview
+
+For a quick check without Xcode or Android Studio, run the app in a browser:
+
+```bash
+npm run web        # opens http://localhost:8081
+```
+
+On web, data is stored in the browser, and notifications, background tasks, biometrics and the
+secure passcode store are unavailable or limited. Use a device build to validate those.
+
 ## Test and lint
 
 ```bash

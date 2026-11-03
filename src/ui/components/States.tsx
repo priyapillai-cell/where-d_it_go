@@ -72,8 +72,7 @@ export function Skeleton({
   const animated = useAnimatedStyle(() => ({ opacity: opacity.value }));
   return (
     <Animated.View
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
+      aria-hidden
       style={[
         { width, height, borderRadius: radius, backgroundColor: colors.skeleton },
         animated,

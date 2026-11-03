@@ -17,10 +17,7 @@ export function ProgressBar({ ratio, color }: { ratio: number; color: string }) 
   const fill = useAnimatedStyle(() => ({ width: `${progress.value * 100}%` }));
 
   return (
-    <View
-      style={[styles.track, { backgroundColor: colors.chartTrack }]}
-      importantForAccessibility="no-hide-descendants"
-    >
+    <View style={[styles.track, { backgroundColor: colors.chartTrack }]} aria-hidden>
       <Animated.View style={[styles.fill, { backgroundColor: color }, fill]} />
     </View>
   );
