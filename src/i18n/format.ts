@@ -27,13 +27,22 @@ function formatter(options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
 }
 
 export type DateStyle =
-  'short' | 'medium' | 'long' | 'monthYear' | 'year' | 'time' | 'dayMonth' | 'weekday';
+  | 'short'
+  | 'medium'
+  | 'long'
+  | 'monthYear'
+  | 'monthShort'
+  | 'year'
+  | 'time'
+  | 'dayMonth'
+  | 'weekday';
 
 const STYLES: Record<DateStyle, Intl.DateTimeFormatOptions> = {
   short: { day: 'numeric', month: 'short' },
   medium: { day: 'numeric', month: 'short', year: 'numeric' },
   long: { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' },
   monthYear: { month: 'long', year: 'numeric' },
+  monthShort: { month: 'short', year: '2-digit' },
   year: { year: 'numeric' },
   time: { hour: 'numeric', minute: '2-digit' },
   dayMonth: { day: 'numeric', month: 'long' },

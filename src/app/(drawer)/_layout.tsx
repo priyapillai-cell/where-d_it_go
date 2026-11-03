@@ -16,6 +16,7 @@ const SCREENS: readonly {
   { name: 'categories', title: 'nav.categories', icon: 'shape-outline' },
   { name: 'budgets', title: 'nav.budgets', icon: 'target' },
   { name: 'recurring', title: 'nav.recurring', icon: 'calendar-sync' },
+  { name: 'reports', title: 'nav.reports', icon: 'chart-box-outline' },
 ];
 
 export default function DrawerLayout() {
