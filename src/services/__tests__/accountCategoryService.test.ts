@@ -1,13 +1,15 @@
 import { getAccount, insertAccount, listAccounts } from '@/db/repositories/accountRepository';
 import { insertCategory, listCategories } from '@/db/repositories/categoryRepository';
-import { insertTransaction } from '@/db/repositories/transactionRepository';
+import { insertRecurringRule, listRecurringRules } from '@/db/repositories/recurringRepository';
+import { insertTransaction, listAllTransactions } from '@/db/repositories/transactionRepository';
 import type { SqlDatabase } from '@/db/sqlDatabase';
 import { moveInList } from '@/domain/ordering';
-import { makeAccount, makeCategory, makeTransaction } from '@/test/factories';
+import { makeAccount, makeCategory, makeRule, makeTransaction } from '@/test/factories';
 import { createTestDatabase } from '@/test/nodeDatabase';
 
 import {
   type AccountInput,
+  accountUsage,
   deleteAccount,
   moveAccount,
   saveAccount,
@@ -74,16 +76,48 @@ describe('accountService', () => {
     expect(await deleteAccount(db, 'only')).toEqual({ ok: false, error: 'lastAccount' });
   });
 
-  it('archives accounts with history but only deletes unused ones', async () => {
+  it('archives accounts and deletes unused ones', async () => {
     await insertAccount(db, makeAccount({ id: 'a' }));
     await insertAccount(db, makeAccount({ id: 'b' }));
     await insertAccount(db, makeAccount({ id: 'c' }));
-    await insertTransaction(db, makeTransaction({ accountId: 'a' }));
-    expect(await deleteAccount(db, 'a')).toEqual({ ok: false, error: 'hasTransactions' });
     expect((await setAccountArchived(db, 'a', true)).ok).toBe(true);
     expect((await getAccount(db, 'a'))?.isArchived).toBe(true);
+    expect(await accountUsage(db, 'c')).toEqual({ transactions: 0, recurringRules: 0 });
     expect((await deleteAccount(db, 'c')).ok).toBe(true);
     expect((await listAccounts(db)).map((x) => x.id)).toEqual(['a', 'b']);
+  });
+
+  it('deletes an account with its transactions, transfers and recurring rules', async () => {
+    await insertAccount(db, makeAccount({ id: 'a' }));
+    await insertAccount(db, makeAccount({ id: 'b' }));
+    await insertTransaction(db, makeTransaction({ id: 'in-a', accountId: 'a' }));
+    await insertTransaction(db, makeTransaction({ id: 'in-b', accountId: 'b' }));
+    await insertTransaction(
+      db,
+      makeTransaction({
+        id: 'b-to-a',
+        type: 'transfer',
+        accountId: 'b',
+        toAccountId: 'a',
+        categoryId: null,
+        toAmount: 100,
+      }),
+    );
+    await insertRecurringRule(db, makeRule({ id: 'rule-a', accountId: 'a' }));
+    await insertRecurringRule(db, makeRule({ id: 'rule-b', accountId: 'b' }));
+    expect(await accountUsage(db, 'a')).toEqual({ transactions: 2, recurringRules: 1 });
+
+    expect((await deleteAccount(db, 'a')).ok).toBe(true);
+    expect(await getAccount(db, 'a')).toBeNull();
+    expect((await listAllTransactions(db)).map((x) => x.id)).toEqual(['in-b']);
+    expect((await listRecurringRules(db)).map((r) => r.id)).toEqual(['rule-b']);
+  });
+
+  it('never deletes the last active account', async () => {
+    await insertAccount(db, makeAccount({ id: 'a' }));
+    await insertAccount(db, makeAccount({ id: 'old', isArchived: true }));
+    expect(await deleteAccount(db, 'a')).toEqual({ ok: false, error: 'lastAccount' });
+    expect((await deleteAccount(db, 'old')).ok).toBe(true);
   });
 
   it('reorders accounts atomically', async () => {

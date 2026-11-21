@@ -7,7 +7,7 @@ import {
   reorderAccounts,
   updateAccount,
 } from '@/db/repositories/accountRepository';
-import type { SqlDatabase } from '@/db/sqlDatabase';
+import type { SqlDatabase, SqlExecutor } from '@/db/sqlDatabase';
 import { moveInList } from '@/domain/ordering';
 import { type Account, err, ok, type Result } from '@/domain/types';
 import { type FieldErrors, hasErrors, validateAccountDraft } from '@/domain/validation';
@@ -62,9 +62,9 @@ export async function saveAccount(
   });
 }
 
-export type AccountActionError = 'notFound' | 'lastAccount' | 'hasTransactions';
+export type AccountActionError = 'notFound' | 'lastAccount';
 
-async function isLastActive(db: SqlDatabase, id: string): Promise<boolean> {
+async function isLastActive(db: SqlExecutor, id: string): Promise<boolean> {
   const active = await listAccounts(db, false);
   return active.length === 1 && active[0]?.id === id;
 }
@@ -81,7 +81,27 @@ export async function setAccountArchived(
   return ok(undefined);
 }
 
-/** Only unused accounts can be deleted; anything with history must be archived instead. */
+export interface AccountUsage {
+  /** Transactions in this account, including transfers to or from it. */
+  transactions: number;
+  recurringRules: number;
+}
+
+/** What deleting an account would remove, so the user can confirm with the full picture. */
+export async function accountUsage(db: SqlDatabase, id: string): Promise<AccountUsage> {
+  const row = await db.first<{ transactions: number; rules: number }>(
+    `SELECT
+       (SELECT COUNT(*) FROM transactions WHERE account_id = ? OR to_account_id = ?) AS transactions,
+       (SELECT COUNT(*) FROM recurring_rules WHERE account_id = ? OR to_account_id = ?) AS rules`,
+    [id, id, id, id],
+  );
+  return { transactions: row?.transactions ?? 0, recurringRules: row?.rules ?? 0 };
+}
+
+/**
+ * Deletes an account together with its transactions (transfers to or from it included) and
+ * its recurring rules, in one transaction. The last active account cannot be deleted.
+ */
 export async function deleteAccount(
   db: SqlDatabase,
   id: string,
@@ -89,14 +109,9 @@ export async function deleteAccount(
   return db.transaction(async (tx) => {
     const account = await getAccount(tx, id);
     if (!account) return err('notFound');
-    if ((await countAccountTransactions(tx, id)) > 0) return err('hasTransactions');
-    const rules = await tx.first<{ n: number }>(
-      'SELECT COUNT(*) AS n FROM recurring_rules WHERE account_id = ? OR to_account_id = ?',
-      [id, id],
-    );
-    if ((rules?.n ?? 0) > 0) return err('hasTransactions');
-    const active = await listAccounts(tx, false);
-    if (!account.isArchived && active.length <= 1) return err('lastAccount');
+    if (!account.isArchived && (await isLastActive(tx, id))) return err('lastAccount');
+    await tx.run('DELETE FROM transactions WHERE account_id = ? OR to_account_id = ?', [id, id]);
+    await tx.run('DELETE FROM recurring_rules WHERE account_id = ? OR to_account_id = ?', [id, id]);
     await tx.run('DELETE FROM accounts WHERE id = ?', [id]);
     return ok(undefined);
   });

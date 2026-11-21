@@ -1,8 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { getDatabase } from '@/db/database';
 import { COMMON_CURRENCIES } from '@/domain/currencies';
 import { parseAmount, toMajorString } from '@/domain/money';
 import { assertNever } from '@/domain/types';
@@ -11,6 +12,7 @@ import { t } from '@/i18n';
 import {
   type AccountActionError,
   type AccountFieldErrors,
+  accountUsage,
   deleteAccount,
   saveAccount,
   setAccountArchived,
@@ -29,13 +31,12 @@ import { ColorPicker, IconPicker } from '../../components/Pickers';
 import { SelectSheet } from '../../components/SelectSheet';
 import { PALETTE } from '../../theme/theme';
 import { useTheme } from '../../theme/ThemeProvider';
+import { showAlert } from '../../dialogs';
 
 function actionErrorMessage(error: AccountActionError): string {
   switch (error) {
     case 'lastAccount':
       return t('accounts.lastAccount');
-    case 'hasTransactions':
-      return t('accounts.cannotDelete');
     case 'notFound':
       return t('common.somethingWentWrong');
     default:
@@ -49,6 +50,7 @@ export function AccountEditScreen() {
   const insets = useSafeAreaInsets();
   const existing = useAppStore((s) => s.accounts.find((a) => a.id === id) ?? null);
   const defaultCurrency = useAppStore((s) => s.settings.defaultCurrency);
+  const activeAccountCount = useAppStore((s) => s.accounts.filter((a) => !a.isArchived).length);
 
   const [name, setName] = useState(existing?.name ?? '');
   const [currency, setCurrency] = useState(existing?.currency ?? defaultCurrency);
@@ -98,37 +100,59 @@ export function AccountEditScreen() {
     if (!existing) return;
     const archive = async () => {
       const result = await write((db) => setAccountArchived(db, existing.id, !existing.isArchived));
-      if (!result.ok) Alert.alert(actionErrorMessage(result.error));
+      if (!result.ok) showAlert(actionErrorMessage(result.error));
       else router.back();
     };
     if (existing.isArchived) {
       void archive();
       return;
     }
-    Alert.alert(t('accounts.archiveConfirm'), t('accounts.archiveConfirmBody'), [
+    showAlert(t('accounts.archiveConfirm'), t('accounts.archiveConfirmBody'), [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('common.archive'), onPress: () => void archive() },
     ]);
   };
 
-  const onDelete = () => {
+  const runDelete = async (accountId: string) => {
+    try {
+      const result = await write((db) => deleteAccount(db, accountId));
+      if (!result.ok) {
+        showAlert(actionErrorMessage(result.error));
+        return;
+      }
+      router.back();
+      showToast({ message: t('accounts.deleted') });
+    } catch (e) {
+      logger.error('Deleting account failed', e);
+      showAlert(t('common.somethingWentWrong'));
+    }
+  };
+
+  const onDelete = async () => {
     if (!existing) return;
-    Alert.alert(t('accounts.deleteConfirm'), existing.name, [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('common.delete'),
-        style: 'destructive',
-        onPress: async () => {
-          const result = await write((db) => deleteAccount(db, existing.id));
-          if (!result.ok) {
-            Alert.alert(actionErrorMessage(result.error));
-            return;
-          }
-          router.back();
-          showToast({ message: t('accounts.deleted') });
+    if (!existing.isArchived && activeAccountCount <= 1) {
+      showAlert(t('accounts.lastAccount'), t('accounts.lastAccountDeleteHint'));
+      return;
+    }
+    const usage = await accountUsage(await getDatabase(), existing.id);
+    const hasData = usage.transactions > 0 || usage.recurringRules > 0;
+    showAlert(
+      t('accounts.deleteConfirm', { name: existing.name }),
+      hasData
+        ? t('accounts.deleteConfirmWithData', {
+            transactions: usage.transactions,
+            rules: usage.recurringRules,
+          })
+        : t('accounts.deleteConfirmEmpty'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: hasData ? t('accounts.deleteEverything') : t('common.delete'),
+          style: 'destructive',
+          onPress: () => void runDelete(existing.id),
         },
-      },
-    ]);
+      ],
+    );
   };
 
   return (
@@ -203,7 +227,7 @@ export function AccountEditScreen() {
               label={t('common.delete')}
               icon="delete-outline"
               variant="danger"
-              onPress={onDelete}
+              onPress={() => void onDelete()}
             />
           </View>
         ) : null}
