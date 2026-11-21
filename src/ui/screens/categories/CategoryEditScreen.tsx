@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { CategoryType } from '@/domain/types';
@@ -24,6 +24,7 @@ import { ColorPicker, IconPicker } from '../../components/Pickers';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { PALETTE } from '../../theme/theme';
 import { useTheme } from '../../theme/ThemeProvider';
+import { showAlert } from '../../dialogs';
 
 export function CategoryEditScreen() {
   const params = useLocalSearchParams<{ id?: string; type?: string }>();
@@ -68,7 +69,7 @@ export function CategoryEditScreen() {
       void apply();
       return;
     }
-    Alert.alert(t('categories.archiveConfirm'), t('categories.archiveConfirmBody'), [
+    showAlert(t('categories.archiveConfirm'), t('categories.archiveConfirmBody'), [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('common.archive'), onPress: () => void apply() },
     ]);

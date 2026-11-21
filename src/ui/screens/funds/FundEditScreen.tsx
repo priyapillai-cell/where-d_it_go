@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getDatabase } from '@/db/database';
@@ -34,6 +34,7 @@ import { ColorPicker, IconPicker } from '../../components/Pickers';
 import { SelectSheet } from '../../components/SelectSheet';
 import { PALETTE } from '../../theme/theme';
 import { useTheme } from '../../theme/ThemeProvider';
+import { showAlert } from '../../dialogs';
 
 type Preset = 'gifts' | 'vacation';
 
@@ -153,7 +154,7 @@ export function FundEditScreen() {
       void archive();
       return;
     }
-    Alert.alert(t('funds.archiveConfirm'), t('funds.archiveConfirmBody'), [
+    showAlert(t('funds.archiveConfirm'), t('funds.archiveConfirmBody'), [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('common.archive'), onPress: () => void archive() },
     ]);
@@ -161,7 +162,7 @@ export function FundEditScreen() {
 
   const onDelete = () => {
     if (!existing) return;
-    Alert.alert(t('funds.deleteConfirm'), t('funds.deleteConfirmBody'), [
+    showAlert(t('funds.deleteConfirm'), t('funds.deleteConfirmBody'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'),

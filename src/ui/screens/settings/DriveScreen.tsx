@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, View } from 'react-native';
 
 import type { BackupFile } from '@/domain/backup';
 import { assertNever } from '@/domain/types';
@@ -21,6 +21,7 @@ import { Card, ListRow, SectionTitle, SwitchRow } from '../../components/FormFie
 import { Icon } from '../../components/Icon';
 import { ModalHeader } from '../../components/ModalHeader';
 import { useTheme } from '../../theme/ThemeProvider';
+import { showAlert } from '../../dialogs';
 
 function problemText(problem: DriveProblem): string {
   switch (problem) {
@@ -84,7 +85,7 @@ export function DriveScreen() {
     });
 
   const onDisconnect = () =>
-    Alert.alert(t('drive.disconnectConfirm'), t('drive.disconnectConfirmBody'), [
+    showAlert(t('drive.disconnectConfirm'), t('drive.disconnectConfirmBody'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('drive.disconnect'),
@@ -98,7 +99,7 @@ export function DriveScreen() {
     ]);
 
   const onUseDrive = () =>
-    Alert.alert(t('drive.choiceUseDriveConfirm'), t('drive.choiceUseDriveConfirmBody'), [
+    showAlert(t('drive.choiceUseDriveConfirm'), t('drive.choiceUseDriveConfirmBody'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('drive.choiceUseDrive'),
@@ -109,7 +110,7 @@ export function DriveScreen() {
     ]);
 
   const onRepair = () =>
-    Alert.alert(t('drive.repair'), t('drive.repairConfirmBody'), [
+    showAlert(t('drive.repair'), t('drive.repairConfirmBody'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.continue'),
@@ -141,11 +142,11 @@ export function DriveScreen() {
     guard(async () => {
       const downloaded = await driveSync.downloadBackup(file.id);
       if (!downloaded.ok) {
-        Alert.alert(t('backups.invalid'));
+        showAlert(t('backups.invalid'));
         return;
       }
       const backup = downloaded.value;
-      Alert.alert(
+      showAlert(
         t('backups.restoreConfirm'),
         t('drive.restoreConfirmBody', { date: dateTime(backup.exportedAt) }),
         [

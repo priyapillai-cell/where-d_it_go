@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 
 import { getDatabase } from '@/db/database';
 import { COMMON_CURRENCIES } from '@/domain/currencies';
@@ -31,6 +31,7 @@ import { AppText } from '../../components/AppText';
 import { Card, ListRow, SectionTitle, SwitchRow } from '../../components/FormField';
 import { type SelectOption, SelectSheet } from '../../components/SelectSheet';
 import { useTheme } from '../../theme/ThemeProvider';
+import { showAlert } from '../../dialogs';
 
 type Sheet = 'none' | 'currency' | 'language' | 'theme' | 'week' | 'month';
 
@@ -155,13 +156,13 @@ export function SettingsScreen() {
   };
 
   const confirmDeleteAll = () => {
-    Alert.alert(t('settings.deleteAllConfirm1'), t('settings.deleteAllConfirm1Body'), [
+    showAlert(t('settings.deleteAllConfirm1'), t('settings.deleteAllConfirm1Body'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.continue'),
         style: 'destructive',
         onPress: () =>
-          Alert.alert(t('settings.deleteAllConfirm2'), t('settings.deleteAllConfirm2Body'), [
+          showAlert(t('settings.deleteAllConfirm2'), t('settings.deleteAllConfirm2Body'), [
             { text: t('common.cancel'), style: 'cancel' },
             {
               text: t('settings.deleteAllAction'),

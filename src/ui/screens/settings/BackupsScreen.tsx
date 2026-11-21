@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { getDatabase } from '@/db/database';
 import { type BackupFile, MAX_BACKUP_BYTES, parseBackup } from '@/domain/backup';
@@ -28,6 +28,7 @@ import { Icon } from '../../components/Icon';
 import { ModalHeader } from '../../components/ModalHeader';
 import { EmptyState } from '../../components/States';
 import { useTheme } from '../../theme/ThemeProvider';
+import { showAlert } from '../../dialogs';
 
 export function BackupsScreen() {
   const { colors } = useTheme();
@@ -70,11 +71,11 @@ export function BackupsScreen() {
   const confirmRestore = (text: string) => {
     const parsed = parseBackup(text);
     if (!parsed.ok) {
-      Alert.alert(t('backups.invalid'));
+      showAlert(t('backups.invalid'));
       return;
     }
     const backup = parsed.value;
-    Alert.alert(
+    showAlert(
       t('backups.restoreConfirm'),
       t('backups.restoreConfirmBody', { date: formatDate(new Date(backup.exportedAt), 'long') }),
       [
@@ -91,7 +92,7 @@ export function BackupsScreen() {
   const onRestoreStored = async (file: StoredFile) => {
     const text = await readTextFile(file.uri, MAX_BACKUP_BYTES);
     if (!text.ok) {
-      Alert.alert(t('backups.invalid'));
+      showAlert(t('backups.invalid'));
       return;
     }
     confirmRestore(text.value);
@@ -100,14 +101,14 @@ export function BackupsScreen() {
   const onRestoreFromFile = async () => {
     const picked = await pickTextFile(['application/json', 'text/plain', '*/*'], MAX_BACKUP_BYTES);
     if (!picked.ok) {
-      if (picked.error !== 'canceled') Alert.alert(t('backups.invalid'));
+      if (picked.error !== 'canceled') showAlert(t('backups.invalid'));
       return;
     }
     confirmRestore(picked.value.text);
   };
 
   const onDelete = (file: StoredFile) => {
-    Alert.alert(t('backups.deleteConfirm'), file.name, [
+    showAlert(t('backups.deleteConfirm'), file.name, [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'),

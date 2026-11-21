@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { listBudgets } from '@/db/repositories/budgetRepository';
@@ -25,6 +25,7 @@ import { SelectSheet } from '../../components/SelectSheet';
 import { ListSkeleton } from '../../components/States';
 import { useDbQuery } from '../../hooks/useDbQuery';
 import { useTheme } from '../../theme/ThemeProvider';
+import { showAlert } from '../../dialogs';
 
 const OVERALL = '__overall__';
 
@@ -92,7 +93,7 @@ function BudgetForm({ existing }: { existing: Budget | null }) {
 
   const onDelete = () => {
     if (!existing) return;
-    Alert.alert(t('budgets.deleteConfirm'), undefined, [
+    showAlert(t('budgets.deleteConfirm'), undefined, [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'),

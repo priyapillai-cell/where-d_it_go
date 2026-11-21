@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -37,6 +37,7 @@ import { ListSkeleton } from '../../components/States';
 import { useDbQuery } from '../../hooks/useDbQuery';
 import { useTheme } from '../../theme/ThemeProvider';
 import { frequencyLabel, REMINDER_CHOICES, reminderLabel } from './labels';
+import { showAlert } from '../../dialogs';
 
 export function RecurringEditScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -143,7 +144,7 @@ function RuleForm({ existing }: { existing: RecurringRule | null }) {
 
   const onDelete = () => {
     if (!existing) return;
-    Alert.alert(t('recurring.deleteConfirm'), t('recurring.deleteConfirmBody'), [
+    showAlert(t('recurring.deleteConfirm'), t('recurring.deleteConfirmBody'), [
       { text: t('common.cancel'), style: 'cancel' },
       {
         text: t('common.delete'),
