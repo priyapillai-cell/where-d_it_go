@@ -2,10 +2,11 @@ import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import type { FundEntry, FundEntryType, SinkingFund } from '@/domain/types';
+import type { Account, FundEntry, FundEntryType, SinkingFund } from '@/domain/types';
 import { t } from '@/i18n';
 import { formatDate, formatPercent, money } from '@/i18n/format';
 import { loadFundDetail } from '@/services/fundService';
+import { useAppStore } from '@/state/appStore';
 
 import { AppText } from '../../components/AppText';
 import { Button, IconButton } from '../../components/Button';
@@ -23,10 +24,33 @@ function openEntry(fundId: string, type: FundEntryType, id?: string) {
   router.push({ pathname: '/fund-entry', params: id ? { fundId, type, id } : { fundId, type } });
 }
 
+function entryLabel(entry: FundEntry, accounts: readonly Account[]): string {
+  if (entry.type === 'spend') return t('funds.entrySpend');
+  if (entry.accountId) {
+    const account = accounts.find((a) => a.id === entry.accountId);
+    if (account) return t('funds.carriedFrom', { account: account.name });
+  }
+  if (entry.id.startsWith('carry-')) return t('funds.carriedFromDeleted');
+  return t('funds.entryDeposit');
+}
+
+function carryoverSummary(fund: SinkingFund, accounts: readonly Account[]): string | null {
+  const account = accounts.find((a) => a.id === fund.autoAccountId);
+  if (!fund.autoMode || !account) return null;
+  if (fund.autoMode === 'leftover') {
+    return t('funds.carryoverSummaryLeftover', { account: account.name });
+  }
+  return t('funds.carryoverSummaryFixed', {
+    account: account.name,
+    amount: money(fund.monthlyContribution ?? 0, fund.currency),
+  });
+}
+
 function EntryRow({ entry, fund }: { entry: FundEntry; fund: SinkingFund }) {
   const { colors } = useTheme();
+  const accounts = useAppStore((s) => s.accounts);
   const isDeposit = entry.type === 'deposit';
-  const label = isDeposit ? t('funds.entryDeposit') : t('funds.entrySpend');
+  const label = entryLabel(entry, accounts);
   const amount = money(isDeposit ? entry.amount : -entry.amount, fund.currency, 'always');
   const date = formatDate(new Date(entry.date), 'medium');
   return (
@@ -77,6 +101,7 @@ export function FundDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const accounts = useAppStore((s) => s.accounts);
   const { data, loading } = useDbQuery(`fund|${id}`, (db) => loadFundDetail(db, id, new Date()));
   const fundName = data?.fund.name;
 
@@ -164,7 +189,12 @@ export function FundDetailScreen() {
             {hint}
           </AppText>
         ) : null}
-        {fund.monthlyContribution !== null ? (
+        {fund.autoMode ? (
+          <AppText variant="caption" color="textSecondary">
+            {carryoverSummary(fund, accounts)}
+          </AppText>
+        ) : null}
+        {fund.monthlyContribution !== null && fund.autoMode !== 'fixed' ? (
           <AppText variant="caption" color="textSecondary">
             {t('funds.planned', { amount: money(fund.monthlyContribution, currency) })}
           </AppText>
