@@ -1,6 +1,12 @@
 import { makeTransaction } from '@/test/factories';
 
-import { budgetProgress, budgetStatus, newlyReachedThresholds, spentForBudget } from '../budgets';
+import {
+  budgetProgress,
+  budgetStatus,
+  monthBudgetSummary,
+  newlyReachedThresholds,
+  spentForBudget,
+} from '../budgets';
 
 it('maps ratios to status bands', () => {
   expect(budgetStatus(0.79)).toBe('ok');
@@ -39,4 +45,32 @@ it('reports thresholds once', () => {
   expect(newlyReachedThresholds(0.8, [])).toEqual([80]);
   expect(newlyReachedThresholds(1.2, [80])).toEqual([100]);
   expect(newlyReachedThresholds(1.2, [80, 100])).toEqual([]);
+});
+
+describe('monthBudgetSummary', () => {
+  const item = (categoryId: string | null, currency: string, limit: number, spent: number) => ({
+    budget: { categoryId, currency },
+    progress: budgetProgress(limit, spent),
+  });
+
+  it('prefers the overall budget in the requested currency', () => {
+    const summary = monthBudgetSummary(
+      [item('food', 'INR', 500, 100), item(null, 'INR', 2000, 900), item(null, 'USD', 10, 1)],
+      'INR',
+    );
+    expect(summary).toEqual({ source: 'overall', progress: budgetProgress(2000, 900) });
+  });
+
+  it('adds up category budgets when there is no overall budget', () => {
+    const summary = monthBudgetSummary(
+      [item('food', 'INR', 500, 600), item('bills', 'INR', 1500, 200)],
+      'INR',
+    );
+    expect(summary).toEqual({ source: 'categories', progress: budgetProgress(2000, 800) });
+  });
+
+  it('returns null without budgets in that currency', () => {
+    expect(monthBudgetSummary([item(null, 'USD', 10, 1)], 'INR')).toBeNull();
+    expect(monthBudgetSummary([], 'INR')).toBeNull();
+  });
 });

@@ -25,6 +25,26 @@ export function budgetProgress(limit: MinorUnits, spent: MinorUnits): BudgetProg
   return { spent, limit, remaining: limit - spent, ratio, status: budgetStatus(ratio) };
 }
 
+export interface MonthBudgetSummary {
+  /** `overall` when an all-expenses budget exists, else the sum of the category budgets. */
+  source: 'overall' | 'categories';
+  progress: BudgetProgress;
+}
+
+/** The month's budget in one currency, as shown on the overview; `null` without budgets. */
+export function monthBudgetSummary(
+  items: readonly { budget: Pick<Budget, 'categoryId' | 'currency'>; progress: BudgetProgress }[],
+  currency: string,
+): MonthBudgetSummary | null {
+  const inCurrency = items.filter((i) => i.budget.currency === currency);
+  const overall = inCurrency.find((i) => i.budget.categoryId === null);
+  if (overall) return { source: 'overall', progress: overall.progress };
+  if (inCurrency.length === 0) return null;
+  const limit = inCurrency.reduce((sum, i) => sum + i.progress.limit, 0);
+  const spent = inCurrency.reduce((sum, i) => sum + i.progress.spent, 0);
+  return { source: 'categories', progress: budgetProgress(limit, spent) };
+}
+
 /** Expense total that counts against a budget: its category (or all) in the budget currency. */
 export function spentForBudget(
   budget: Pick<Budget, 'categoryId' | 'currency'>,

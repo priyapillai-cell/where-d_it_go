@@ -33,6 +33,7 @@ import {
   RING_ICON,
   type RingItem,
 } from './CategoryRing';
+import { MonthBudgetCard } from './MonthBudgetCard';
 
 const MAX_CHART = 420;
 
@@ -186,6 +187,7 @@ export function HomeScreen() {
       />
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 120 + insets.bottom }]}>
+        <MonthBudgetCard currency={scope.currency} firstDayOfMonth={settings.firstDayOfMonth} />
         <View style={[styles.chartArea, { width: chartSize, height: chartSize }]}>
           <View
             style={[
