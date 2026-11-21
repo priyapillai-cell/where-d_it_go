@@ -70,6 +70,7 @@ function AppNavigator() {
       <Stack.Screen name="passcode" options={modal} />
       <Stack.Screen name="import-csv" options={modal} />
       <Stack.Screen name="backups" options={modal} />
+      <Stack.Screen name="drive" options={modal} />
     </Stack>
   );
 }

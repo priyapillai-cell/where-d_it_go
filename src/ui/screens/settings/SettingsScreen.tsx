@@ -17,11 +17,13 @@ import { t, type TranslationKey } from '@/i18n';
 import { excelLabels } from '@/i18n/excelLabels';
 import { exportBackupJson, exportCsv, exportExcel, resetAllData } from '@/services/dataService';
 import { type ExportKind, shareExport } from '@/services/fileService';
+import { driveSync } from '@/services/google/driveSyncInstance';
 import { cancelAllNotifications } from '@/services/notificationService';
 import { biometricsAvailable, clearPasscode } from '@/services/securityService';
 import { write } from '@/services/writes';
 import { useAppStore } from '@/state/appStore';
 import { useFilterStore } from '@/state/filterStore';
+import { useSyncStore } from '@/state/syncStore';
 import { showToast } from '@/state/toastStore';
 import { logger } from '@/utils/logger';
 
@@ -78,6 +80,7 @@ export function SettingsScreen() {
   const [sheet, setSheet] = useState<Sheet>('none');
   const [canUseBiometrics, setCanUseBiometrics] = useState(false);
   const [busy, setBusy] = useState(false);
+  const driveOn = useSyncStore((s) => s.status !== 'off');
 
   useEffect(() => {
     let active = true;
@@ -133,6 +136,7 @@ export function SettingsScreen() {
 
   const deleteEverything = async () => {
     try {
+      await driveSync.disconnect();
       await write((db) =>
         resetAllData(db, {
           currency: settings.defaultCurrency,
@@ -321,6 +325,12 @@ export function SettingsScreen() {
           icon="file-import-outline"
           label={t('settings.importCsv')}
           onPress={() => router.push('/import-csv')}
+        />
+        <ListRow
+          icon="google-drive"
+          label={t('settings.googleDrive')}
+          value={driveOn ? t('settings.googleDriveOn') : t('settings.googleDriveOff')}
+          onPress={() => router.push('/drive')}
         />
         <ListRow
           icon="backup-restore"

@@ -319,6 +319,9 @@ export const en = {
     exportJson: 'Export everything (JSON)',
     importCsv: 'Import from CSV',
     backups: 'Backup and restore',
+    googleDrive: 'Google Drive',
+    googleDriveOn: 'On',
+    googleDriveOff: 'Off',
     deleteAll: 'Delete all data',
     deleteAllConfirm1: 'Delete all data?',
     deleteAllConfirm1Body:
@@ -418,6 +421,66 @@ export const en = {
     deleteConfirm: 'Delete this backup file?',
     hint: 'Backups are stored on this device. Share them to keep a copy elsewhere.',
     size: '{{size}} KB',
+  },
+  drive: {
+    title: 'Google Drive',
+    intro:
+      'Keep your data in your own Google Drive: sync it between devices, keep daily backups and get an always up-to-date spreadsheet.',
+    connect: 'Connect Google account',
+    connecting: 'Connecting…',
+    connectedAs: 'Connected as {{email}}',
+    connected: 'Connected',
+    syncNow: 'Sync now',
+    syncing: 'Syncing…',
+    lastSynced: 'Last synced {{when}}',
+    neverSynced: 'Not synced yet',
+    disconnect: 'Disconnect',
+    disconnectConfirm: 'Disconnect Google Drive?',
+    disconnectConfirmBody:
+      'Sync stops on this device. Your data stays on this device and the copy in Google Drive is kept.',
+    sectionOptions: 'Options',
+    autoBackup: 'Daily backup to Drive',
+    autoBackupHint: 'Keeps the last 30 days in a private app folder',
+    sheet: 'Spreadsheet in Drive',
+    sheetHint: 'Updates "Pocket Ledger.xlsx" in a "Pocket Ledger" folder after each sync',
+    openSheet: 'Open folder in Google Drive',
+    sectionBackups: 'Backups in Drive',
+    backupNow: 'Back up now',
+    backupDone: 'Backup saved to Google Drive',
+    backupsEmpty: 'No backups in Drive yet',
+    loadBackups: 'Show backups',
+    restoreConfirmBody:
+      'All current data will be replaced by the backup from {{date}}. Your other synced devices will receive the restored data too.',
+    choiceTitle: 'Google Drive already has data',
+    choiceBody:
+      'This device has its own data too. Combine both, or replace what is on this device with the data from Drive?',
+    choiceMerge: 'Combine both',
+    choiceUseDrive: 'Use Drive data',
+    choiceUseDriveConfirm: 'Replace this device’s data?',
+    choiceUseDriveConfirmBody:
+      'Everything on this device is replaced by the data in Google Drive. Consider creating a backup first.',
+    privacy:
+      'Pocket Ledger can only see files it creates. Your data goes straight from this device to your Google account.',
+    unavailable: {
+      expoGo:
+        'Google sign-in does not work in Expo Go. Install a development build of the app to connect Google Drive.',
+      unsupportedPlatform: 'Google Drive sync is available on iPhone and iPad.',
+      notConfigured:
+        'Google Drive is not set up for this build. Add a Google iOS client ID (see README) and rebuild.',
+    },
+    problem: {
+      network: 'Could not reach Google Drive. It will retry automatically.',
+      signedOut: 'Google access expired or was revoked. Connect again to resume sync.',
+      remoteInvalid: 'The sync file in Google Drive is damaged.',
+      remoteNewerApp:
+        'Another device uses a newer version of Pocket Ledger. Update this app to sync.',
+      conflict: 'Another device was syncing at the same time. Try again in a moment.',
+      unknown: 'Sync failed. Try again later.',
+    },
+    repair: 'Replace Drive copy with this device',
+    repairConfirmBody:
+      'The damaged sync file in Google Drive is replaced with the data on this device.',
+    connectFailed: 'Could not connect to Google Drive',
   },
   validation: {
     required: 'Required',

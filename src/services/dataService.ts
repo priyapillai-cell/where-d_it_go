@@ -1,3 +1,4 @@
+import { clearSyncLog } from '@/db/repositories/syncRepository';
 import { listAccounts } from '@/db/repositories/accountRepository';
 import {
   insertCategory,
@@ -99,10 +100,14 @@ export async function restoreBackup(db: SqlDatabase, backup: BackupFile): Promis
   });
 }
 
-/** Wipes every table and re-creates the first-run defaults in one transaction. */
+/**
+ * Wipes every table and re-creates the first-run defaults in one transaction. The sync change
+ * log is cleared too, so a later Google Drive connection does not delete the Drive copy.
+ */
 export async function resetAllData(db: SqlDatabase, seed: SeedOptions): Promise<void> {
   await db.transaction(async (tx) => {
     await wipeAll(tx);
+    await clearSyncLog(tx);
     await seedDefaults(tx, seed);
     await saveSettings(tx, { defaultCurrency: seed.currency });
   });

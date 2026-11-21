@@ -11,6 +11,7 @@ import { logger } from '@/utils/logger';
 import { registerBackgroundTasks } from './backgroundTasks';
 import { runBudgetAlerts } from './budgetAlertService';
 import { notifyDataChanged, onDataChanged } from './dataEvents';
+import { driveSync } from './google/driveSyncInstance';
 import { runMaintenance } from './maintenanceService';
 
 export async function seedIfEmpty(): Promise<void> {
@@ -35,6 +36,7 @@ export async function bootstrapApp(): Promise<void> {
   unsubscribe = onDataChanged(async () => {
     // Fire and forget: alert delivery must never delay the write that triggered it.
     void runBudgetAlerts(await getDatabase());
+    driveSync.schedule();
   });
   const store = useAppStore.getState();
   store.setStatus('loading');
@@ -54,4 +56,10 @@ export async function bootstrapApp(): Promise<void> {
     logger.error('Launch maintenance failed', error);
   }
   void registerBackgroundTasks();
+  try {
+    await driveSync.refreshState();
+    void driveSync.sync();
+  } catch (error) {
+    logger.warn('Google Drive state failed to load', error);
+  }
 }

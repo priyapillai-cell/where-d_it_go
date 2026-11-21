@@ -4,6 +4,7 @@ import * as TaskManager from 'expo-task-manager';
 import { getDatabase } from '@/db/database';
 import { logger } from '@/utils/logger';
 
+import { driveSync } from './google/driveSyncInstance';
 import { runMaintenance } from './maintenanceService';
 
 export const MAINTENANCE_TASK = 'pocket-ledger.maintenance';
@@ -13,6 +14,7 @@ const MINIMUM_INTERVAL_MINUTES = 6 * 60;
 TaskManager.defineTask(MAINTENANCE_TASK, async () => {
   try {
     await runMaintenance(await getDatabase(), { source: 'background' });
+    await driveSync.sync();
     return BackgroundTask.BackgroundTaskResult.Success;
   } catch (error) {
     logger.error('Background maintenance failed', error);

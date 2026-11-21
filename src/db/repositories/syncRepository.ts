@@ -173,6 +173,11 @@ export async function clearSyncedData(db: SqlExecutor): Promise<void> {
     await db.run(`DELETE FROM ${table}`);
   }
   await db.run('DELETE FROM budget_alerts');
+  await clearSyncLog(db);
+}
+
+/** Forgets every recorded change and deletion; existing rows count as never edited. */
+export async function clearSyncLog(db: SqlExecutor): Promise<void> {
   await db.run('DELETE FROM sync_changes');
 }
 

@@ -67,6 +67,7 @@ it('round-trips exports: JSON restores everything, CSV keeps a stable header', a
   expect((await listAccounts(db)).map((a) => a.name)).toEqual(['Wallet']);
   expect((await loadSettings(db)).defaultCurrency).toBe('EUR');
   expect(await listAllTransactions(db)).toEqual([]);
+  expect(await db.first('SELECT 1 FROM sync_changes WHERE deleted = 1')).toBeNull();
 
   await restoreBackup(db, parsed.value);
   expect((await listAccounts(db)).map((a) => a.id)).toEqual(['cash']);
