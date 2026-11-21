@@ -89,6 +89,42 @@ export interface Budget {
   currency: string;
 }
 
+/**
+ * Money set aside for an irregular, larger expense (gifts, vacations). Tracked separately from
+ * daily accounts: fund entries never change account balances or the daily overview.
+ */
+export interface SinkingFund {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  currency: string;
+  /** Goal for the fund; `null` when the fund has no target. */
+  targetAmount: MinorUnits | null;
+  /** Calendar day (YYYY-MM-DD) the target should be reached by. */
+  targetDate: string | null;
+  /** Planned amount to set aside each month. */
+  monthlyContribution: MinorUnits | null;
+  isArchived: boolean;
+  sortOrder: number;
+  createdAt: IsoTimestamp;
+}
+
+export type FundEntryType = 'deposit' | 'spend';
+export const FUND_ENTRY_TYPES: readonly FundEntryType[] = ['deposit', 'spend'];
+
+export interface FundEntry {
+  id: string;
+  fundId: string;
+  type: FundEntryType;
+  /** Always positive, in the fund's currency. */
+  amount: MinorUnits;
+  note: string;
+  date: IsoTimestamp;
+  createdAt: IsoTimestamp;
+  updatedAt: IsoTimestamp;
+}
+
 export interface Settings {
   defaultCurrency: string;
   firstDayOfWeek: WeekStart;

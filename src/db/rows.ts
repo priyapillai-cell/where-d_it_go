@@ -4,7 +4,10 @@ import type {
   Category,
   CategoryType,
   Frequency,
+  FundEntry,
+  FundEntryType,
   RecurringRule,
+  SinkingFund,
   Transaction,
   TransactionType,
 } from '@/domain/types';
@@ -139,6 +142,56 @@ export const toBudget = (r: BudgetRow): Budget => ({
   period: r.period,
   amount: r.amount,
   currency: r.currency,
+});
+
+export interface SinkingFundRow {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  currency: string;
+  target_amount: number | null;
+  target_date: string | null;
+  monthly_contribution: number | null;
+  is_archived: number;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface FundEntryRow {
+  id: string;
+  fund_id: string;
+  type: FundEntryType;
+  amount: number;
+  note: string;
+  date: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export const toSinkingFund = (r: SinkingFundRow): SinkingFund => ({
+  id: r.id,
+  name: r.name,
+  icon: r.icon,
+  color: r.color,
+  currency: r.currency,
+  targetAmount: r.target_amount,
+  targetDate: r.target_date,
+  monthlyContribution: r.monthly_contribution,
+  isArchived: r.is_archived === 1,
+  sortOrder: r.sort_order,
+  createdAt: r.created_at,
+});
+
+export const toFundEntry = (r: FundEntryRow): FundEntry => ({
+  id: r.id,
+  fundId: r.fund_id,
+  type: r.type,
+  amount: r.amount,
+  note: r.note,
+  date: r.date,
+  createdAt: r.created_at,
+  updatedAt: r.updated_at,
 });
 
 export const bool = (v: boolean): number => (v ? 1 : 0);

@@ -1,4 +1,10 @@
-import { makeAccount, makeCategory, makeTransaction } from '@/test/factories';
+import {
+  makeAccount,
+  makeCategory,
+  makeFund,
+  makeFundEntry,
+  makeTransaction,
+} from '@/test/factories';
 
 import { type BackupData, createBackup, parseBackup } from '../backup';
 import { DEFAULT_SETTINGS } from '../types';
@@ -12,6 +18,8 @@ function sampleData(): BackupData {
     transactions: [makeTransaction({ accountId: 'a1', categoryId: 'c1' })],
     recurringRules: [],
     budgets: [{ id: 'b1', categoryId: null, period: 'monthly', amount: 50000, currency: 'USD' }],
+    sinkingFunds: [makeFund({ id: 'f1' })],
+    fundEntries: [makeFundEntry({ id: 'e1', fundId: 'f1' })],
     settings: DEFAULT_SETTINGS,
   };
 }
@@ -46,6 +54,26 @@ it('detects dangling references', () => {
     transactions: [makeTransaction({ accountId: 'missing' })],
   });
   const parsed = parseBackup(JSON.stringify(backup));
+  expect(parsed.ok).toBe(false);
+  if (!parsed.ok) expect(parsed.error.kind).toBe('integrity');
+});
+
+it('accepts version 1 backups, which predate sinking funds', () => {
+  const { sinkingFunds: _funds, fundEntries: _entries, ...v1Data } = sampleData();
+  const parsed = parseBackup(
+    JSON.stringify({ ...createBackup(sampleData()), version: 1, data: v1Data }),
+  );
+  expect(parsed.ok && parsed.value.data.sinkingFunds).toEqual([]);
+  expect(parsed.ok && parsed.value.data.fundEntries).toEqual([]);
+});
+
+it('rejects fund entries that point at a missing fund', () => {
+  const data = sampleData();
+  const parsed = parseBackup(
+    JSON.stringify(
+      createBackup({ ...data, fundEntries: [makeFundEntry({ id: 'e2', fundId: 'nope' })] }),
+    ),
+  );
   expect(parsed.ok).toBe(false);
   if (!parsed.ok) expect(parsed.error.kind).toBe('integrity');
 });

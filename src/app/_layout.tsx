@@ -6,6 +6,7 @@ import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { t } from '@/i18n';
 import { bootstrapApp } from '@/services/bootstrapService';
 import { useAppStore } from '@/state/appStore';
 import { ErrorBoundary } from '@/ui/components/ErrorBoundary';
@@ -63,6 +64,9 @@ function AppNavigator() {
       <Stack.Screen name="category-edit" options={modal} />
       <Stack.Screen name="budget-edit" options={modal} />
       <Stack.Screen name="recurring-edit" options={modal} />
+      <Stack.Screen name="fund" options={{ title: '', headerBackTitle: t('nav.funds') }} />
+      <Stack.Screen name="fund-edit" options={modal} />
+      <Stack.Screen name="fund-entry" options={modal} />
       <Stack.Screen name="passcode" options={modal} />
       <Stack.Screen name="import-csv" options={modal} />
       <Stack.Screen name="backups" options={modal} />

@@ -16,6 +16,7 @@ const SCREENS: readonly {
   { name: 'categories', title: 'nav.categories', icon: 'shape-outline' },
   { name: 'budgets', title: 'nav.budgets', icon: 'target' },
   { name: 'recurring', title: 'nav.recurring', icon: 'calendar-sync' },
+  { name: 'funds', title: 'nav.funds', icon: 'piggy-bank-outline' },
   { name: 'reports', title: 'nav.reports', icon: 'chart-box-outline' },
   { name: 'settings', title: 'nav.settings', icon: 'cog-outline' },
 ];

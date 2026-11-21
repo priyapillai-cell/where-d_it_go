@@ -1,10 +1,27 @@
 import { computeBalances, flowsFromTransactions } from './balance';
 import { currencyFractionDigits } from './money';
-import type { Account, Category, MinorUnits, Transaction, TransactionType } from './types';
+import { summarizeFund } from './sinkingFunds';
+import type {
+  Account,
+  Category,
+  FundEntry,
+  FundEntryType,
+  MinorUnits,
+  SinkingFund,
+  Transaction,
+  TransactionType,
+} from './types';
 import type { XlsxCell, XlsxDecimals, XlsxSheet } from './xlsx';
 
 export interface ExcelExportLabels {
-  sheets: { transactions: string; monthly: string; categories: string; accounts: string };
+  sheets: {
+    transactions: string;
+    monthly: string;
+    categories: string;
+    accounts: string;
+    funds: string;
+    fundHistory: string;
+  };
   columns: {
     date: string;
     type: string;
@@ -25,8 +42,14 @@ export interface ExcelExportLabels {
     openingBalance: string;
     balance: string;
     archived: string;
+    fund: string;
+    target: string;
+    targetDate: string;
+    deposited: string;
+    spent: string;
   };
   types: Record<TransactionType, string>;
+  fundEntryTypes: Record<FundEntryType, string>;
   yes: string;
   no: string;
   uncategorized: string;
@@ -36,6 +59,8 @@ export interface ExcelExportData {
   transactions: readonly Transaction[];
   accounts: readonly Account[];
   categories: readonly Category[];
+  sinkingFunds?: readonly SinkingFund[];
+  fundEntries?: readonly FundEntry[];
 }
 
 function decimalsFor(currency: string): XlsxDecimals {
@@ -74,7 +99,11 @@ function byDateAscending(a: Transaction, b: Transaction): number {
  * of view (expenses and outgoing transfers negative) so a column SUM gives the net change.
  * Totals are grouped per currency and never mixed.
  */
-export function buildExcelSheets(data: ExcelExportData, labels: ExcelExportLabels): XlsxSheet[] {
+export function buildExcelSheets(
+  data: ExcelExportData,
+  labels: ExcelExportLabels,
+  now: Date = new Date(),
+): XlsxSheet[] {
   const accountById = new Map(data.accounts.map((a) => [a.id, a]));
   const categoryById = new Map(data.categories.map((c) => [c.id, c]));
   const sorted = [...data.transactions].sort(byDateAscending);
@@ -192,7 +221,7 @@ export function buildExcelSheets(data: ExcelExportData, labels: ExcelExportLabel
       ]),
   ];
 
-  return [
+  const sheets: XlsxSheet[] = [
     {
       name: labels.sheets.transactions,
       headerRow: true,
@@ -216,6 +245,92 @@ export function buildExcelSheets(data: ExcelExportData, labels: ExcelExportLabel
       headerRow: true,
       columnWidths: [22, 10, 16, 16, 10],
       rows: accountRows,
+    },
+  ];
+  const funds = data.sinkingFunds ?? [];
+  if (funds.length > 0) sheets.push(...fundSheets(funds, data.fundEntries ?? [], labels, now));
+  return sheets;
+}
+
+function fundSheets(
+  funds: readonly SinkingFund[],
+  entries: readonly FundEntry[],
+  labels: ExcelExportLabels,
+  now: Date,
+): XlsxSheet[] {
+  const col = labels.columns;
+  const fundById = new Map(funds.map((f) => [f.id, f]));
+  const byFund = new Map<string, FundEntry[]>();
+  for (const entry of entries) {
+    const list = byFund.get(entry.fundId) ?? [];
+    list.push(entry);
+    byFund.set(entry.fundId, list);
+  }
+
+  const summaryRows: XlsxCell[][] = [
+    header([
+      col.fund,
+      col.currency,
+      col.target,
+      col.targetDate,
+      col.deposited,
+      col.spent,
+      col.balance,
+      col.archived,
+    ]),
+    ...[...funds]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((fund) => {
+        const summary = summarizeFund(fund, byFund.get(fund.id) ?? [], now);
+        return [
+          text(fund.name),
+          text(fund.currency),
+          fund.targetAmount !== null ? moneyCell(fund.targetAmount, fund.currency) : text(''),
+          text(fund.targetDate ?? ''),
+          moneyCell(summary.deposited, fund.currency),
+          moneyCell(summary.spent, fund.currency),
+          moneyCell(summary.balance, fund.currency),
+          text(fund.isArchived ? labels.yes : labels.no),
+        ];
+      }),
+  ];
+
+  const historyRows: XlsxCell[][] = [
+    header([col.date, col.fund, col.type, col.amount, col.currency, col.note]),
+    ...[...entries]
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+      .flatMap((entry) => {
+        const fund = fundById.get(entry.fundId);
+        if (!fund) return [];
+        const date = new Date(entry.date);
+        return [
+          [
+            {
+              value: Number.isNaN(date.getTime()) ? entry.date : date,
+              style: { kind: 'dateTime' as const },
+            },
+            text(fund.name),
+            text(labels.fundEntryTypes[entry.type]),
+            moneyCell(entry.type === 'deposit' ? entry.amount : -entry.amount, fund.currency),
+            text(fund.currency),
+            text(entry.note),
+          ],
+        ];
+      }),
+  ];
+
+  return [
+    {
+      name: labels.sheets.funds,
+      headerRow: true,
+      columnWidths: [22, 10, 14, 12, 14, 14, 14, 10],
+      rows: summaryRows,
+    },
+    {
+      name: labels.sheets.fundHistory,
+      headerRow: true,
+      columnWidths: [18, 22, 12, 14, 10, 32],
+      rows: historyRows,
     },
   ];
 }

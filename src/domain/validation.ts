@@ -98,6 +98,50 @@ export function validateBudgetAmount(amount: MinorUnits | null): ValidationCode 
   return amount === null ? 'amountPositive' : validateAmount(amount);
 }
 
+export interface FundDraft {
+  name: string;
+  currency: string;
+  targetAmount: MinorUnits | null;
+  targetDate: string | null;
+  monthlyContribution: MinorUnits | null;
+}
+
+const CALENDAR_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+export function validateFundDraft(
+  draft: FundDraft,
+): FieldErrors<'name' | 'currency' | 'targetAmount' | 'targetDate' | 'monthlyContribution'> {
+  return {
+    name: validateName(draft.name),
+    currency: isValidCurrencyCode(draft.currency) ? undefined : 'invalidCurrency',
+    targetAmount: draft.targetAmount === null ? undefined : validateAmount(draft.targetAmount),
+    targetDate:
+      draft.targetDate === null
+        ? undefined
+        : CALENDAR_DAY.test(draft.targetDate) && isValidIso(draft.targetDate)
+          ? undefined
+          : 'invalidDate',
+    monthlyContribution:
+      draft.monthlyContribution === null ? undefined : validateAmount(draft.monthlyContribution),
+  };
+}
+
+export interface FundEntryDraft {
+  amount: MinorUnits;
+  note: string;
+  date: string;
+}
+
+export function validateFundEntryDraft(
+  draft: FundEntryDraft,
+): FieldErrors<'amount' | 'note' | 'date'> {
+  return {
+    amount: validateAmount(draft.amount),
+    note: draft.note.length > MAX_NOTE_LENGTH ? 'tooLong' : undefined,
+    date: isValidIso(draft.date) ? undefined : 'invalidDate',
+  };
+}
+
 export interface RecurringDraft {
   amount: MinorUnits;
   accountId: string | null;

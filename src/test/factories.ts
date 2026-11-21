@@ -1,4 +1,11 @@
-import type { Account, Category, RecurringRule, Transaction } from '@/domain/types';
+import type {
+  Account,
+  Category,
+  FundEntry,
+  RecurringRule,
+  SinkingFund,
+  Transaction,
+} from '@/domain/types';
 
 let counter = 0;
 const nextId = (prefix: string) => `${prefix}-${(counter += 1)}`;
@@ -69,6 +76,37 @@ export function makeRule(overrides: Partial<RecurringRule> = {}): RecurringRule 
     reminderDaysBefore: null,
     isActive: true,
     createdAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export function makeFund(overrides: Partial<SinkingFund> = {}): SinkingFund {
+  return {
+    id: nextId('fund'),
+    name: 'Vacation',
+    icon: 'airplane',
+    color: '#1E88E5',
+    currency: 'USD',
+    targetAmount: null,
+    targetDate: null,
+    monthlyContribution: null,
+    isArchived: false,
+    sortOrder: 0,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export function makeFundEntry(overrides: Partial<FundEntry> = {}): FundEntry {
+  return {
+    id: nextId('entry'),
+    fundId: 'fund',
+    type: 'deposit',
+    amount: 10000,
+    note: '',
+    date: '2026-03-15T12:00:00.000Z',
+    createdAt: '2026-03-15T12:00:00.000Z',
+    updatedAt: '2026-03-15T12:00:00.000Z',
     ...overrides,
   };
 }

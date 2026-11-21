@@ -5,6 +5,7 @@ import {
   nextCategorySortOrder,
 } from '@/db/repositories/categoryRepository';
 import { dumpAll, replaceAll, wipeAll } from '@/db/repositories/dataRepository';
+import { listAllFundEntries, listFunds } from '@/db/repositories/fundRepository';
 import { loadSettings, saveSettings } from '@/db/repositories/settingsRepository';
 import { insertTransaction, listAllTransactions } from '@/db/repositories/transactionRepository';
 import { type SeedOptions, seedDefaults } from '@/db/seed';
@@ -121,12 +122,21 @@ export async function exportExcel(
   labels: ExcelExportLabels,
   now: Date = new Date(),
 ): Promise<Uint8Array> {
-  const [transactions, accounts, categories] = await Promise.all([
+  const [transactions, accounts, categories, sinkingFunds, fundEntries] = await Promise.all([
     listAllTransactions(db),
     listAccounts(db),
     listCategories(db),
+    listFunds(db),
+    listAllFundEntries(db),
   ]);
-  return buildXlsx(buildExcelSheets({ transactions, accounts, categories }, labels), now);
+  return buildXlsx(
+    buildExcelSheets(
+      { transactions, accounts, categories, sinkingFunds, fundEntries },
+      labels,
+      now,
+    ),
+    now,
+  );
 }
 
 export async function exportBackupJson(db: SqlDatabase, now: Date = new Date()): Promise<string> {

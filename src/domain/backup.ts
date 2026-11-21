@@ -6,15 +6,17 @@ import {
   type Budget,
   type Category,
   err,
+  type FundEntry,
   ok,
   type RecurringRule,
   type Result,
   type Settings,
+  type SinkingFund,
   type Transaction,
 } from './types';
 
 export const BACKUP_FORMAT = 'pocket-ledger-backup';
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 2;
 export const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
 
 const id = z.string().min(1).max(64);
@@ -91,6 +93,33 @@ export const budgetSchema = z.object({
   currency,
 }) satisfies z.ZodType<Budget>;
 
+const calendarDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+export const sinkingFundSchema = z.object({
+  id,
+  name: z.string().min(1).max(60),
+  icon: z.string().min(1).max(64),
+  color,
+  currency,
+  targetAmount: positiveMinor.nullable(),
+  targetDate: calendarDay.nullable(),
+  monthlyContribution: positiveMinor.nullable(),
+  isArchived: z.boolean(),
+  sortOrder: z.number().int(),
+  createdAt: isoDate,
+}) satisfies z.ZodType<SinkingFund>;
+
+export const fundEntrySchema = z.object({
+  id,
+  fundId: id,
+  type: z.enum(['deposit', 'spend']),
+  amount: positiveMinor,
+  note: shortText,
+  date: isoDate,
+  createdAt: isoDate,
+  updatedAt: isoDate,
+}) satisfies z.ZodType<FundEntry>;
+
 export const settingsSchema = z.object({
   defaultCurrency: currency,
   firstDayOfWeek: z.union([z.literal(0), z.literal(1), z.literal(6)]),
@@ -111,6 +140,9 @@ export const backupSchema = z.object({
     transactions: z.array(transactionSchema),
     recurringRules: z.array(recurringRuleSchema),
     budgets: z.array(budgetSchema),
+    /** Added in version 2; older backups have no sinking funds. */
+    sinkingFunds: z.array(sinkingFundSchema).default([]),
+    fundEntries: z.array(fundEntrySchema).default([]),
     settings: settingsSchema,
   }),
 });
@@ -152,6 +184,14 @@ function checkIntegrity(data: BackupData): string[] {
     'budget',
     data.budgets.map((b) => b.id),
   );
+  unique(
+    'sinking fund',
+    data.sinkingFunds.map((f) => f.id),
+  );
+  unique(
+    'fund entry',
+    data.fundEntries.map((e) => e.id),
+  );
 
   const accountIds = new Set(data.accounts.map((a) => a.id));
   const categoryIds = new Set(data.categories.map((c) => c.id));
@@ -177,6 +217,10 @@ function checkIntegrity(data: BackupData): string[] {
   data.budgets.forEach((b) => {
     if (b.categoryId !== null && !categoryIds.has(b.categoryId))
       issues.push(`Budget ${b.id}: unknown category`);
+  });
+  const fundIds = new Set(data.sinkingFunds.map((f) => f.id));
+  data.fundEntries.forEach((e) => {
+    if (!fundIds.has(e.fundId)) issues.push(`Fund entry ${e.id}: unknown sinking fund`);
   });
   return issues.slice(0, 20);
 }

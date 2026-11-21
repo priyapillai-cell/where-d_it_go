@@ -1,6 +1,12 @@
 import { strFromU8, unzipSync } from 'fflate';
 
-import { makeAccount, makeCategory, makeTransaction } from '@/test/factories';
+import {
+  makeAccount,
+  makeCategory,
+  makeFund,
+  makeFundEntry,
+  makeTransaction,
+} from '@/test/factories';
 
 import { buildExcelSheets, type ExcelExportLabels } from '../excelExport';
 import {
@@ -26,6 +32,8 @@ const LABELS: ExcelExportLabels = {
     monthly: 'Monthly summary',
     categories: 'By category',
     accounts: 'Accounts',
+    funds: 'Sinking funds',
+    fundHistory: 'Fund history',
   },
   columns: {
     date: 'Date',
@@ -47,8 +55,14 @@ const LABELS: ExcelExportLabels = {
     openingBalance: 'Opening balance',
     balance: 'Current balance',
     archived: 'Archived',
+    fund: 'Fund',
+    target: 'Target',
+    targetDate: 'Target date',
+    deposited: 'Set aside',
+    spent: 'Spent',
   },
   types: { expense: 'Expense', income: 'Income', transfer: 'Transfer' },
+  fundEntryTypes: { deposit: 'Set aside', spend: 'Spent' },
   yes: 'Yes',
   no: 'No',
   uncategorized: 'Uncategorized',
@@ -236,6 +250,51 @@ describe('buildExcelSheets', () => {
     expect(values(accounts?.rows ?? []).slice(1)).toEqual([
       ['Wallet', 'USD', 100, 5077.5, 'No'],
       ['Yen', 'JPY', 0, 700, 'No'],
+    ]);
+  });
+
+  it('adds fund summary and history sheets only when funds exist', () => {
+    const withFunds = buildExcelSheets(
+      {
+        transactions: [],
+        accounts: [],
+        categories: [],
+        sinkingFunds: [
+          makeFund({ id: 'f1', name: 'Vacation', currency: 'INR', targetAmount: 10000000 }),
+        ],
+        fundEntries: [
+          makeFundEntry({ fundId: 'f1', amount: 2500000, date: '2026-10-01T10:00:00.000Z' }),
+          makeFundEntry({
+            fundId: 'f1',
+            type: 'spend',
+            amount: 500000,
+            note: 'Hotel',
+            date: '2026-11-01T10:00:00.000Z',
+          }),
+          makeFundEntry({ fundId: 'gone', amount: 1 }),
+        ],
+      },
+      LABELS,
+      NOW,
+    );
+    expect(withFunds.map((s) => s.name)).toEqual([
+      'Transactions',
+      'Monthly summary',
+      'By category',
+      'Accounts',
+      'Sinking funds',
+      'Fund history',
+    ]);
+    expect(values(withFunds[4]?.rows ?? []).slice(1)).toEqual([
+      ['Vacation', 'INR', 100000, '', 25000, 5000, 20000, 'No'],
+    ]);
+    expect(
+      values(withFunds[5]?.rows ?? [])
+        .slice(1)
+        .map((r) => r.slice(1)),
+    ).toEqual([
+      ['Vacation', 'Set aside', 25000, 'INR', ''],
+      ['Vacation', 'Spent', -5000, 'INR', 'Hotel'],
     ]);
   });
 

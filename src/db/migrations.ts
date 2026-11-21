@@ -95,6 +95,33 @@ export const MIGRATIONS: readonly string[] = [
     value TEXT NOT NULL
   );
   `,
+  `
+  CREATE TABLE sinking_funds (
+    id TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    icon TEXT NOT NULL,
+    color TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    target_amount INTEGER CHECK (target_amount IS NULL OR target_amount > 0),
+    target_date TEXT,
+    monthly_contribution INTEGER CHECK (monthly_contribution IS NULL OR monthly_contribution > 0),
+    is_archived INTEGER NOT NULL DEFAULT 0,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
+
+  CREATE TABLE fund_entries (
+    id TEXT PRIMARY KEY NOT NULL,
+    fund_id TEXT NOT NULL REFERENCES sinking_funds(id) ON DELETE CASCADE,
+    type TEXT NOT NULL CHECK (type IN ('deposit', 'spend')),
+    amount INTEGER NOT NULL CHECK (amount > 0),
+    note TEXT NOT NULL DEFAULT '',
+    date TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+  CREATE INDEX idx_fund_entries_fund ON fund_entries(fund_id, date);
+  `,
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
