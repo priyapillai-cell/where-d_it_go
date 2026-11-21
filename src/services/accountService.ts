@@ -8,6 +8,7 @@ import {
   updateAccount,
 } from '@/db/repositories/accountRepository';
 import type { SqlDatabase, SqlExecutor } from '@/db/sqlDatabase';
+import { currencyFractionDigits } from '@/domain/money';
 import { moveInList } from '@/domain/ordering';
 import { type Account, err, ok, type Result } from '@/domain/types';
 import { type FieldErrors, hasErrors, validateAccountDraft } from '@/domain/validation';
@@ -88,7 +89,7 @@ export interface AccountUsage {
 }
 
 /** What deleting an account would remove, so the user can confirm with the full picture. */
-export async function accountUsage(db: SqlDatabase, id: string): Promise<AccountUsage> {
+export async function accountUsage(db: SqlExecutor, id: string): Promise<AccountUsage> {
   const row = await db.first<{ transactions: number; rules: number }>(
     `SELECT
        (SELECT COUNT(*) FROM transactions WHERE account_id = ? OR to_account_id = ?) AS transactions,
@@ -114,6 +115,46 @@ export async function deleteAccount(
     await tx.run('DELETE FROM recurring_rules WHERE account_id = ? OR to_account_id = ?', [id, id]);
     await tx.run('DELETE FROM accounts WHERE id = ?', [id]);
     return ok(undefined);
+  });
+}
+
+/** Accounts that are not in `currency` and could still switch to it (nothing recorded yet). */
+export async function accountsSwitchableTo(db: SqlDatabase, currency: string): Promise<Account[]> {
+  const accounts = await listAccounts(db, false);
+  const result: Account[] = [];
+  for (const account of accounts) {
+    if (account.currency === currency) continue;
+    if ((await accountUsage(db, account.id)).transactions > 0) continue;
+    result.push(account);
+  }
+  return result;
+}
+
+/**
+ * Moves unused accounts to another currency, keeping the opening balance's face value
+ * (₹100 stays 100 in the new currency). Accounts that gained transactions meanwhile are skipped.
+ */
+export async function switchAccountsCurrency(
+  db: SqlDatabase,
+  ids: readonly string[],
+  currency: string,
+): Promise<number> {
+  return db.transaction(async (tx) => {
+    let switched = 0;
+    for (const id of ids) {
+      const account = await getAccount(tx, id);
+      if (!account || account.currency === currency) continue;
+      if ((await accountUsage(tx, id)).transactions > 0) continue;
+      const scale =
+        10 ** (currencyFractionDigits(currency) - currencyFractionDigits(account.currency));
+      await updateAccount(tx, {
+        ...account,
+        currency,
+        initialBalance: Math.round(account.initialBalance * scale),
+      });
+      switched += 1;
+    }
+    return switched;
   });
 }
 

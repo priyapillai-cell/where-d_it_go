@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 
 import { getDatabase } from '@/db/database';
-import { COMMON_CURRENCIES } from '@/domain/currencies';
 import {
   assertNever,
   type LanguagePreference,
@@ -15,6 +14,7 @@ import {
 } from '@/domain/types';
 import { t, type TranslationKey } from '@/i18n';
 import { excelLabels } from '@/i18n/excelLabels';
+import { accountsSwitchableTo, switchAccountsCurrency } from '@/services/accountService';
 import { exportBackupJson, exportCsv, exportExcel, resetAllData } from '@/services/dataService';
 import { type ExportKind, shareExport } from '@/services/fileService';
 import { driveSync } from '@/services/google/driveSyncInstance';
@@ -32,6 +32,7 @@ import { Card, ListRow, SectionTitle, SwitchRow } from '../../components/FormFie
 import { type SelectOption, SelectSheet } from '../../components/SelectSheet';
 import { useTheme } from '../../theme/ThemeProvider';
 import { showAlert } from '../../dialogs';
+import { currencyLabel, currencyOptions } from '../../currencyOptions';
 
 type Sheet = 'none' | 'currency' | 'language' | 'theme' | 'week' | 'month';
 
@@ -97,6 +98,35 @@ export function SettingsScreen() {
 
   const save = (patch: Parameters<typeof updateSettings>[0]) => {
     updateSettings(patch).catch((e: unknown) => logger.error('Saving settings failed', e));
+  };
+
+  const changeDefaultCurrency = async (currency: string) => {
+    if (currency === settings.defaultCurrency) return;
+    save({ defaultCurrency: currency });
+    try {
+      const switchable = await accountsSwitchableTo(await getDatabase(), currency);
+      if (switchable.length === 0) return;
+      showAlert(
+        t('settings.switchAccountsTitle', { currency: currencyLabel(currency) }),
+        t('settings.switchAccountsBody', { accounts: switchable.map((a) => a.name).join(', ') }),
+        [
+          { text: t('settings.switchAccountsKeep'), style: 'cancel' },
+          {
+            text: t('settings.switchAccountsAction'),
+            onPress: () =>
+              void write((db) =>
+                switchAccountsCurrency(
+                  db,
+                  switchable.map((a) => a.id),
+                  currency,
+                ),
+              ).catch((e: unknown) => logger.error('Switching account currency failed', e)),
+          },
+        ],
+      );
+    } catch (e) {
+      logger.warn('Checking accounts for the new currency failed', e);
+    }
   };
 
   const buildExport = async (kind: ExportKind): Promise<[string, string | Uint8Array]> => {
@@ -174,10 +204,6 @@ export function SettingsScreen() {
     ]);
   };
 
-  const currencies = COMMON_CURRENCIES.includes(settings.defaultCurrency)
-    ? COMMON_CURRENCIES
-    : [settings.defaultCurrency, ...COMMON_CURRENCIES];
-
   const sheetConfig = ((): {
     title: string;
     options: SelectOption<string>[];
@@ -190,9 +216,9 @@ export function SettingsScreen() {
       case 'currency':
         return {
           title: t('settings.defaultCurrency'),
-          options: currencies.map((c) => ({ value: c, label: c })),
+          options: currencyOptions(settings.defaultCurrency),
           selected: settings.defaultCurrency,
-          onSelect: (value) => save({ defaultCurrency: value }),
+          onSelect: (value) => void changeDefaultCurrency(value),
         };
       case 'language':
         return {
@@ -246,7 +272,7 @@ export function SettingsScreen() {
         <ListRow
           icon="cash"
           label={t('settings.defaultCurrency')}
-          value={settings.defaultCurrency}
+          value={currencyLabel(settings.defaultCurrency)}
           onPress={() => setSheet('currency')}
         />
         <ListRow

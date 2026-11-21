@@ -300,6 +300,11 @@ export const en = {
     title: 'Settings',
     general: 'General',
     defaultCurrency: 'Default currency',
+    switchAccountsTitle: 'Use {{currency}} for your accounts too?',
+    switchAccountsBody:
+      'These accounts have no transactions yet and can switch to the new currency: {{accounts}}. Accounts with transactions keep their currency.',
+    switchAccountsAction: 'Switch accounts',
+    switchAccountsKeep: 'Keep as is',
     language: 'Language',
     languageSystem: 'System default',
     languageEn: 'English',
@@ -429,6 +434,11 @@ export const en = {
     deleteConfirm: 'Delete this backup file?',
     hint: 'Backups are stored on this device. Share them to keep a copy elsewhere.',
     size: '{{size}} KB',
+  },
+  currencies: {
+    INR: 'Indian rupee (₹)',
+    USD: 'US dollar ($)',
+    EUR: 'Euro (€)',
   },
   drive: {
     title: 'Google Drive',

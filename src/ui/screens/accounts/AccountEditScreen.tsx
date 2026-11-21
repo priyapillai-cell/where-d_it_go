@@ -4,7 +4,6 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getDatabase } from '@/db/database';
-import { COMMON_CURRENCIES } from '@/domain/currencies';
 import { parseAmount, toMajorString } from '@/domain/money';
 import { assertNever } from '@/domain/types';
 import { MAX_NAME_LENGTH } from '@/domain/validation';
@@ -32,6 +31,7 @@ import { SelectSheet } from '../../components/SelectSheet';
 import { PALETTE } from '../../theme/theme';
 import { useTheme } from '../../theme/ThemeProvider';
 import { showAlert } from '../../dialogs';
+import { currencyLabel, currencyOptions } from '../../currencyOptions';
 
 function actionErrorMessage(error: AccountActionError): string {
   switch (error) {
@@ -63,10 +63,6 @@ export function AccountEditScreen() {
   const [errors, setErrors] = useState<AccountFieldErrors & { balanceText?: 'invalidNumber' }>({});
   const [currencySheet, setCurrencySheet] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const currencies = COMMON_CURRENCIES.includes(currency)
-    ? COMMON_CURRENCIES
-    : [currency, ...COMMON_CURRENCIES];
 
   const onSave = async () => {
     const initialBalance = balanceText.trim() === '' ? 0 : parseAmount(balanceText, currency);
@@ -181,7 +177,7 @@ export function AccountEditScreen() {
           <FieldLabel>{t('accounts.currency')}</FieldLabel>
           <View style={styles.wrap}>
             <Chip
-              label={currency}
+              label={currencyLabel(currency)}
               icon="currency-usd"
               trailingIcon="chevron-down"
               accessibilityLabel={`${t('accounts.currency')}: ${currency}`}
@@ -245,7 +241,7 @@ export function AccountEditScreen() {
       <SelectSheet
         visible={currencySheet}
         title={t('accounts.currency')}
-        options={currencies.map((code) => ({ value: code, label: code }))}
+        options={currencyOptions(currency)}
         selected={currency}
         onSelect={(code) => {
           setCurrency(code);

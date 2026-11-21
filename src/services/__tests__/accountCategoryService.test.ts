@@ -9,11 +9,13 @@ import { createTestDatabase } from '@/test/nodeDatabase';
 
 import {
   type AccountInput,
+  accountsSwitchableTo,
   accountUsage,
   deleteAccount,
   moveAccount,
   saveAccount,
   setAccountArchived,
+  switchAccountsCurrency,
 } from '../accountService';
 import { moveCategory, saveCategory, setCategoryArchived } from '../categoryService';
 
@@ -111,6 +113,22 @@ describe('accountService', () => {
     expect(await getAccount(db, 'a')).toBeNull();
     expect((await listAllTransactions(db)).map((x) => x.id)).toEqual(['in-b']);
     expect((await listRecurringRules(db)).map((r) => r.id)).toEqual(['rule-b']);
+  });
+
+  it('switches only unused accounts to a new currency, keeping the face value', async () => {
+    await insertAccount(db, makeAccount({ id: 'cash', currency: 'USD', initialBalance: 1250 }));
+    await insertAccount(db, makeAccount({ id: 'used', currency: 'USD' }));
+    await insertAccount(db, makeAccount({ id: 'inr', currency: 'INR' }));
+    await insertTransaction(db, makeTransaction({ accountId: 'used' }));
+
+    const switchable = await accountsSwitchableTo(db, 'INR');
+    expect(switchable.map((a) => a.id)).toEqual(['cash']);
+    expect(await switchAccountsCurrency(db, ['cash', 'used', 'inr'], 'INR')).toBe(1);
+    expect(await getAccount(db, 'cash')).toMatchObject({ currency: 'INR', initialBalance: 1250 });
+    expect((await getAccount(db, 'used'))?.currency).toBe('USD');
+
+    await switchAccountsCurrency(db, ['cash'], 'JPY');
+    expect(await getAccount(db, 'cash')).toMatchObject({ currency: 'JPY', initialBalance: 13 });
   });
 
   it('never deletes the last active account', async () => {

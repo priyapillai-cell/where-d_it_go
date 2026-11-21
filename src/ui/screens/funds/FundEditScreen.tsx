@@ -5,7 +5,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getDatabase } from '@/db/database';
 import { getFund } from '@/db/repositories/fundRepository';
-import { COMMON_CURRENCIES } from '@/domain/currencies';
 import { parseAmount, toMajorString } from '@/domain/money';
 import { parseCalendarDay, toCalendarDay } from '@/domain/sinkingFunds';
 import type { SinkingFund } from '@/domain/types';
@@ -35,6 +34,7 @@ import { SelectSheet } from '../../components/SelectSheet';
 import { PALETTE } from '../../theme/theme';
 import { useTheme } from '../../theme/ThemeProvider';
 import { showAlert } from '../../dialogs';
+import { currencyLabel, currencyOptions } from '../../currencyOptions';
 
 type Preset = 'gifts' | 'vacation';
 
@@ -107,9 +107,6 @@ export function FundEditScreen() {
     };
   }, [params.id]);
 
-  const currencies = COMMON_CURRENCIES.includes(currency)
-    ? COMMON_CURRENCIES
-    : [currency, ...COMMON_CURRENCIES];
   const targetDay = targetDate ? parseCalendarDay(targetDate) : null;
 
   const onSave = async () => {
@@ -202,7 +199,7 @@ export function FundEditScreen() {
           <FieldLabel>{t('funds.currency')}</FieldLabel>
           <View style={styles.wrap}>
             <Chip
-              label={currency}
+              label={currencyLabel(currency)}
               icon="currency-usd"
               trailingIcon="chevron-down"
               accessibilityLabel={`${t('funds.currency')}: ${currency}`}
@@ -302,7 +299,7 @@ export function FundEditScreen() {
       <SelectSheet
         visible={sheet === 'currency'}
         title={t('funds.currency')}
-        options={currencies.map((code) => ({ value: code, label: code }))}
+        options={currencyOptions(currency)}
         selected={currency}
         onSelect={(code) => {
           setCurrency(code);
