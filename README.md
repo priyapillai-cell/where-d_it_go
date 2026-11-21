@@ -13,7 +13,7 @@ device in SQLite: no accounts, no cloud backend, no ads and no analytics.
 - Recurring income and expenses, generated on app open and by a background task, with reminders
 - Reports: spending by category, income vs expenses, balance over time, this month vs last month
 - Settings: currency, theme, language, first day of week/month, passcode and biometric lock,
-  CSV export/import with column mapping, JSON backup/restore and the share sheet, delete all data
+  CSV and Excel export, CSV import with column mapping, JSON backup/restore and the share sheet, delete all data
 
 ## Requirements
 
@@ -152,6 +152,11 @@ categories:
 
 - **CSV export** uses a stable header: `date,type,amount,currency,account,category,note,to_account,to_amount,to_currency`.
   Cells that a spreadsheet could interpret as formulas are neutralised.
+- **Excel export** (`.xlsx`, Office Open XML) opens in Excel 2007 and later, Excel for Mac and
+  mobile, Google Sheets, Apple Numbers and LibreOffice. It has four sheets: Transactions (real
+  date cells and numeric amounts, signed so a column sum is the net change), Monthly summary,
+  By category and Accounts. Totals are grouped per currency, and every cell is a literal value,
+  never a formula.
 - **CSV import** auto-detects `,`, `;` or tab delimiters and guesses the column mapping and date
   format, then shows a review with per-row errors before importing. Rows with a negative amount
   and no type column become expenses. Unknown categories are created; up to 50,000 rows and

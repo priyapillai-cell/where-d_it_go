@@ -24,7 +24,22 @@ function backupDirectory(): Directory {
   return dir;
 }
 
-async function writeFile(dir: Directory, name: string, contents: string): Promise<File> {
+export type ExportKind = 'csv' | 'json' | 'xlsx';
+
+const EXPORT_TYPES: Record<ExportKind, { mimeType: string; UTI: string }> = {
+  csv: { mimeType: 'text/csv', UTI: 'public.comma-separated-values-text' },
+  json: { mimeType: 'application/json', UTI: 'public.json' },
+  xlsx: {
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    UTI: 'org.openxmlformats.spreadsheetml.sheet',
+  },
+};
+
+async function writeFile(
+  dir: Directory,
+  name: string,
+  contents: string | Uint8Array,
+): Promise<File> {
   const file = new File(dir, name);
   if (file.exists) file.delete();
   file.create();
@@ -35,8 +50,8 @@ async function writeFile(dir: Directory, name: string, contents: string): Promis
 /** Writes an export to the cache directory and opens the share sheet. */
 export async function shareExport(
   baseName: string,
-  extension: 'csv' | 'json',
-  contents: string,
+  extension: ExportKind,
+  contents: string | Uint8Array,
   now: Date = new Date(),
 ): Promise<Result<void, 'unavailable' | 'failed'>> {
   try {
@@ -46,10 +61,7 @@ export async function shareExport(
       `${baseName}-${timestamp(now)}.${extension}`,
       contents,
     );
-    await Sharing.shareAsync(file.uri, {
-      mimeType: extension === 'csv' ? 'text/csv' : 'application/json',
-      UTI: extension === 'csv' ? 'public.comma-separated-values-text' : 'public.json',
-    });
+    await Sharing.shareAsync(file.uri, EXPORT_TYPES[extension]);
     return ok(undefined);
   } catch (error) {
     logger.error('Export failed', error);

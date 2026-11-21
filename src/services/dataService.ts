@@ -12,7 +12,9 @@ import type { SqlDatabase } from '@/db/sqlDatabase';
 import { type BackupFile, createBackup } from '@/domain/backup';
 import { transactionsToCsv } from '@/domain/csvExport';
 import type { ImportCandidate } from '@/domain/csvImport';
+import { buildExcelSheets, type ExcelExportLabels } from '@/domain/excelExport';
 import { PALETTE } from '@/domain/palette';
+import { buildXlsx } from '@/domain/xlsx';
 import { newId } from '@/utils/id';
 
 /**
@@ -112,6 +114,19 @@ export async function exportCsv(db: SqlDatabase): Promise<string> {
     listCategories(db),
   ]);
   return transactionsToCsv(transactions, accounts, categories);
+}
+
+export async function exportExcel(
+  db: SqlDatabase,
+  labels: ExcelExportLabels,
+  now: Date = new Date(),
+): Promise<Uint8Array> {
+  const [transactions, accounts, categories] = await Promise.all([
+    listAllTransactions(db),
+    listAccounts(db),
+    listCategories(db),
+  ]);
+  return buildXlsx(buildExcelSheets({ transactions, accounts, categories }, labels), now);
 }
 
 export async function exportBackupJson(db: SqlDatabase, now: Date = new Date()): Promise<string> {

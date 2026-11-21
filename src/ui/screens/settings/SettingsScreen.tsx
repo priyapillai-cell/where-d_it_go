@@ -14,8 +14,9 @@ import {
   type WeekStart,
 } from '@/domain/types';
 import { t, type TranslationKey } from '@/i18n';
-import { exportBackupJson, exportCsv, resetAllData } from '@/services/dataService';
-import { shareExport } from '@/services/fileService';
+import { excelLabels } from '@/i18n/excelLabels';
+import { exportBackupJson, exportCsv, exportExcel, resetAllData } from '@/services/dataService';
+import { type ExportKind, shareExport } from '@/services/fileService';
 import { cancelAllNotifications } from '@/services/notificationService';
 import { biometricsAvailable, clearPasscode } from '@/services/securityService';
 import { write } from '@/services/writes';
@@ -94,17 +95,26 @@ export function SettingsScreen() {
     updateSettings(patch).catch((e: unknown) => logger.error('Saving settings failed', e));
   };
 
-  const runExport = async (kind: 'csv' | 'json') => {
+  const buildExport = async (kind: ExportKind): Promise<[string, string | Uint8Array]> => {
+    const db = await getDatabase();
+    switch (kind) {
+      case 'csv':
+        return ['pocket-ledger-transactions', await exportCsv(db)];
+      case 'xlsx':
+        return ['pocket-ledger-transactions', await exportExcel(db, excelLabels())];
+      case 'json':
+        return ['pocket-ledger-backup', await exportBackupJson(db)];
+      default:
+        return assertNever(kind);
+    }
+  };
+
+  const runExport = async (kind: ExportKind) => {
     if (busy) return;
     setBusy(true);
     try {
-      const db = await getDatabase();
-      const contents = kind === 'csv' ? await exportCsv(db) : await exportBackupJson(db);
-      const result = await shareExport(
-        kind === 'csv' ? 'pocket-ledger-transactions' : 'pocket-ledger-backup',
-        kind,
-        contents,
-      );
+      const [baseName, contents] = await buildExport(kind);
+      const result = await shareExport(baseName, kind, contents);
       if (!result.ok) {
         showToast({
           message:
@@ -296,6 +306,11 @@ export function SettingsScreen() {
           icon="file-delimited-outline"
           label={t('settings.exportCsv')}
           onPress={() => void runExport('csv')}
+        />
+        <ListRow
+          icon="microsoft-excel"
+          label={t('settings.exportExcel')}
+          onPress={() => void runExport('xlsx')}
         />
         <ListRow
           icon="code-json"
