@@ -1,9 +1,10 @@
 import type { Account, Category, CategoryType } from '@/domain/types';
-import { newId } from '@/utils/id';
+import { stableId } from '@/utils/id';
 
 import { insertAccount } from './repositories/accountRepository';
 import { insertCategory } from './repositories/categoryRepository';
 import { saveSettings } from './repositories/settingsRepository';
+import { stampSeedRows } from './repositories/syncRepository';
 import type { SqlExecutor } from './sqlDatabase';
 
 interface CategorySeed {
@@ -46,9 +47,10 @@ export interface SeedOptions {
 export async function seedDefaults(db: SqlExecutor, options: SeedOptions): Promise<void> {
   const nowIso = (options.now ?? new Date()).toISOString();
   const order: Record<CategoryType, number> = { expense: 0, income: 0 };
+  const ids: string[] = [];
   for (const seed of DEFAULT_CATEGORIES) {
     const category: Category = {
-      id: newId(),
+      id: stableId('seed', 'category', seed.key),
       name: options.categoryName(seed.key),
       type: seed.type,
       icon: seed.icon,
@@ -57,9 +59,10 @@ export async function seedDefaults(db: SqlExecutor, options: SeedOptions): Promi
       isArchived: false,
     };
     await insertCategory(db, category);
+    ids.push(category.id);
   }
   const account: Account = {
-    id: newId(),
+    id: stableId('seed', 'account', 'cash'),
     name: options.accountName,
     currency: options.currency,
     initialBalance: 0,
@@ -71,6 +74,8 @@ export async function seedDefaults(db: SqlExecutor, options: SeedOptions): Promi
     createdAt: nowIso,
   };
   await insertAccount(db, account);
+  ids.push(account.id);
+  await stampSeedRows(db, ids);
   await saveSettings(db, { defaultCurrency: options.currency });
 }
 

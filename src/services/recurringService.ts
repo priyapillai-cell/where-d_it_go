@@ -5,8 +5,8 @@ import {
 } from '@/db/repositories/recurringRepository';
 import { insertTransactionIfAbsent } from '@/db/repositories/transactionRepository';
 import type { SqlDatabase } from '@/db/sqlDatabase';
-import { dueOccurrences, transactionFromRule } from '@/domain/recurrence';
-import { newId } from '@/utils/id';
+import { dueOccurrences, occurrenceKey, transactionFromRule } from '@/domain/recurrence';
+import { stableId } from '@/utils/id';
 import { logger } from '@/utils/logger';
 
 export interface GenerationResult {
@@ -49,7 +49,17 @@ async function run(db: SqlDatabase, now: Date): Promise<GenerationResult> {
         const nowIso = now.toISOString();
         let created = 0;
         for (const date of due) {
-          if (await insertTransactionIfAbsent(tx, transactionFromRule(rule, date, newId(), nowIso)))
+          if (
+            await insertTransactionIfAbsent(
+              tx,
+              transactionFromRule(
+                rule,
+                date,
+                stableId('occ', rule.id, occurrenceKey(date)),
+                nowIso,
+              ),
+            )
+          )
             created += 1;
         }
         const last = due[due.length - 1];

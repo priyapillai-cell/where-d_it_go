@@ -122,7 +122,60 @@ export const MIGRATIONS: readonly string[] = [
   );
   CREATE INDEX idx_fund_entries_fund ON fund_entries(fund_id, date);
   `,
+  syncChangeLogMigration([
+    'accounts',
+    'categories',
+    'sinking_funds',
+    'recurring_rules',
+    'transactions',
+    'budgets',
+    'fund_entries',
+  ]),
 ];
+
+/**
+ * Version 3: a change log for Google Drive sync. Triggers stamp every insert, update and
+ * delete of a synced table, so repositories need no sync-specific code and deletions leave
+ * tombstones that can be propagated. Existing rows are stamped as changed at migration time.
+ */
+function syncChangeLogMigration(tables: readonly string[]): string {
+  const now = `strftime('%Y-%m-%dT%H:%M:%fZ', 'now')`;
+  // An explicit upsert: inside a trigger, OR REPLACE is overridden by the outer statement's
+  // conflict policy, which breaks for repository upserts.
+  const upsert =
+    'ON CONFLICT (table_name, row_id) DO UPDATE SET changed_at = excluded.changed_at, deleted = excluded.deleted';
+  const perTable = tables.map(
+    (table) => `
+  CREATE TRIGGER sync_${table}_insert AFTER INSERT ON ${table} BEGIN
+    INSERT INTO sync_changes (table_name, row_id, changed_at, deleted)
+    VALUES ('${table}', NEW.id, ${now}, 0) ${upsert};
+  END;
+  CREATE TRIGGER sync_${table}_update AFTER UPDATE ON ${table} BEGIN
+    INSERT INTO sync_changes (table_name, row_id, changed_at, deleted)
+    VALUES ('${table}', NEW.id, ${now}, 0) ${upsert};
+  END;
+  CREATE TRIGGER sync_${table}_delete AFTER DELETE ON ${table} BEGIN
+    INSERT INTO sync_changes (table_name, row_id, changed_at, deleted)
+    VALUES ('${table}', OLD.id, ${now}, 1) ${upsert};
+  END;
+  INSERT OR REPLACE INTO sync_changes (table_name, row_id, changed_at, deleted)
+    SELECT '${table}', id, ${now}, 0 FROM ${table};`,
+  );
+  return `
+  CREATE TABLE sync_changes (
+    table_name TEXT NOT NULL,
+    row_id TEXT NOT NULL,
+    changed_at TEXT NOT NULL,
+    deleted INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (table_name, row_id)
+  );
+  CREATE TABLE sync_meta (
+    key TEXT PRIMARY KEY NOT NULL,
+    value TEXT NOT NULL
+  );
+  ${perTable.join('\n')}
+  `;
+}
 
 export const SCHEMA_VERSION = MIGRATIONS.length;
 
