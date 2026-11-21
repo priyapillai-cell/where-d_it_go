@@ -1,7 +1,8 @@
 # Pocket Ledger
 
 A fast, offline-first personal expense tracker inspired by Monefy. Everything is stored on the
-device in SQLite: no accounts, no cloud backend, no ads and no analytics.
+device in SQLite: no sign-up, no backend server, no ads and no analytics. Optionally, the app
+syncs with the user's own Google Drive.
 
 - Home donut chart by category with a period selector (day, week, month, year, all, custom)
 - Quick add in three taps or fewer, with a calculator keypad and Undo
@@ -11,6 +12,10 @@ device in SQLite: no accounts, no cloud backend, no ads and no analytics.
 - Categories with icon and colour pickers, reorder and archive (history is kept)
 - Monthly budgets (overall and per category) with progress bars and local alerts at 80% and 100%
 - Recurring income and expenses, generated on app open and by a background task, with reminders
+- Sinking funds for occasional big expenses (gifts, vacations): savings goals with a target,
+  date and monthly plan, tracked separately from daily spending and account balances
+- Google Drive (iOS): two-way sync between devices, daily backups kept for 30 days, and an
+  always up-to-date `Pocket Ledger.xlsx` spreadsheet in a "Pocket Ledger" folder
 - Reports: spending by category, income vs expenses, balance over time, this month vs last month
 - Settings: currency, theme, language, first day of week/month, passcode and biometric lock,
   CSV and Excel export, CSV import with column mapping, JSON backup/restore and the share sheet, delete all data
@@ -58,6 +63,57 @@ npm run web        # opens http://localhost:8081
 On web, data is stored in the browser, and notifications, background tasks, biometrics and the
 secure passcode store are unavailable or limited. Use a device build to validate those.
 
+## Google Drive setup
+
+Drive sync signs in with Google directly from the app (OAuth with PKCE, no client secret and no
+server). It needs a Google Cloud OAuth client tied to your bundle id, and a development or
+production build: **Google sign-in does not work in Expo Go**. It is available on iPhone and
+iPad; Android and web show it as unavailable.
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create a project.
+2. **APIs & Services → Library**: enable the **Google Drive API**.
+3. **APIs & Services → OAuth consent screen** (Google Auth Platform): choose **External**, fill in
+   the app name and support email, and add the scopes `.../auth/drive.appdata` and
+   `.../auth/drive.file`. While the app is in **Testing**, add each Google account that will
+   sign in under **Test users** (up to 100).
+4. **Credentials → Create credentials → OAuth client ID → iOS**: enter your bundle id (for
+   example `com.yourname.pocketledger`). Copy the client ID.
+5. Create `.env.local` from `.env.example`:
+
+   ```bash
+   EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID=1234567890-abc123.apps.googleusercontent.com
+   APP_BUNDLE_ID=com.yourname.pocketledger
+   ```
+
+6. Rebuild the native app (the client ID is also registered as a URL scheme):
+
+   ```bash
+   npx expo prebuild --clean --platform ios
+   npx expo run:ios --device   # pick your iPhone (connected by cable, Developer Mode on)
+   ```
+
+   Xcode needs a signing team: open `ios/*.xcworkspace`, select the target, **Signing &
+   Capabilities → Team** (a free Apple ID works for your own devices).
+
+Then open **Settings → Google Drive → Connect Google account**. The app only requests access to
+its own hidden app folder (sync file and backups) and to files it creates (the spreadsheet); it
+cannot read anything else in the user's Drive.
+
+How it behaves:
+
+- **Sync** runs on app open, when the app returns to the foreground, about 15 seconds after an
+  edit, from the background task, and with **Sync now**. Each record carries a change time; the
+  most recent edit wins, and deletions travel as tombstones.
+- **First connection**: with an empty Drive, this device's data is uploaded. If Drive already has
+  data and this device has none of its own, the Drive data is downloaded. If both have data, the
+  app asks whether to **combine both** or **use the Drive data**.
+- **Backups**: one JSON backup per day in the hidden app folder, the newest 30 are kept, and any
+  of them can be restored from the Google Drive screen. A restore propagates to other devices.
+- **Spreadsheet**: refreshed after each sync that changed something, in the same format as the
+  Excel export. Edits made to that file in Drive are not read back.
+- **Disconnect** or **Delete all data** stop sync on this device and revoke the app's access; the
+  copy in Drive is kept.
+
 ## Test and lint
 
 ```bash
@@ -79,8 +135,10 @@ device.
 npx eas-cli@latest build --profile production --platform all
 ```
 
-Set `ios.bundleIdentifier` and `android.package` in `app.json` (currently
-`com.example.pocketledger`) to your own identifiers first.
+Set `APP_BUNDLE_ID` (see `.env.example`), or `ios.bundleIdentifier` and `android.package` in
+`app.json` (currently `com.example.pocketledger`), to your own identifier first. For Drive sync
+in production builds, set `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` as an EAS environment variable and
+publish the OAuth consent screen so accounts other than the test users can sign in.
 
 ## Project structure
 
@@ -101,7 +159,8 @@ src/
   state/                    Zustand stores (cached settings/accounts/categories, UI state)
   i18n/                     English strings and locale-aware money/date formatting
   ui/                       Theme, reusable components, charts, hooks and screens
-  test/                     Test database and factories
+  services/google/          Google sign-in, Drive REST client, sync file, backups, spreadsheet
+  test/                     Test database, factories and a fake Drive API
 ```
 
 Dependencies point one way: `ui → state/services → db → domain`. The domain layer has no
@@ -120,6 +179,8 @@ Dates are ISO-8601 UTC strings and are bucketed in the device's local time zone.
 | `Transaction`   | expense/income/transfer, amount, account, destination account and received amount for transfers, category, note, date, recurring rule link.   |
 | `RecurringRule` | transaction template plus frequency, interval, start/end date, generation watermark, reminder days, active flag.                              |
 | `Budget`        | monthly limit for all expenses (`categoryId = null`) or one category, in one currency.                                                        |
+| `SinkingFund`   | savings goal with currency, optional target amount, target date and monthly plan; archived, sort order. Not part of account balances.         |
+| `FundEntry`     | deposit into or spend from a fund, with amount, note and date.                                                                                |
 | `Settings`      | default currency, first day of week/month, theme, language, passcode and biometrics flags.                                                    |
 
 Indexes cover transaction date, account, destination account and category. Every multi-step
@@ -136,6 +197,12 @@ Design decisions worth knowing:
 - **Recurring generation is idempotent**: a unique `(rule, occurrence)` index plus a per-rule
   watermark updated in the same transaction. Running it twice, concurrently, or after an edit
   never duplicates a payment, and a deleted generated payment is not recreated.
+- **Sync needs no code in repositories.** SQLite triggers record every insert, update and delete
+  of synced tables in a change log (`sync_changes`). Seed rows and recurring occurrences get
+  deterministic ids, so two devices never create duplicates of the same default category or
+  scheduled payment. Remote changes that would break a reference (for example a category
+  deleted on one phone while another phone used it) are rejected locally and the surviving row
+  is pushed back, so all devices converge.
 - **The passcode hash never touches SQLite or backups.** A salted SHA-256 is stored in the OS
   keychain/keystore with attempt throttling; restoring a backup never changes lock settings.
 
@@ -161,6 +228,7 @@ categories:
   format, then shows a review with per-row errors before importing. Rows with a negative amount
   and no type column become expenses. Unknown categories are created; up to 50,000 rows and
   10 MB per file.
+- **Excel export** also has **Sinking funds** and **Fund history** sheets when funds exist.
 - **JSON backups** contain all data and are validated with a schema (including referential
   integrity) before anything is replaced.
 
@@ -173,7 +241,14 @@ categories:
 - Background generation relies on the OS scheduler (`expo-background-task`), which may run
   rarely or not at all on some devices; due payments are always caught up on the next app open.
 - Budgets are monthly only and count expenses in accounts matching the budget's currency.
-- Backups are local files; keeping a copy elsewhere is manual through the share sheet.
+- Local backups are files on the device; use Google Drive or the share sheet to keep a copy
+  elsewhere.
+- Google Drive sync is iOS only for now. Android needs its own OAuth client (package name and
+  SHA-1) and the web build has no secure place for a refresh token.
+- Sync resolves conflicts per record by change time, so a device with a badly wrong clock can
+  win or lose edits unexpectedly. Deletions are remembered for 180 days; a device offline for
+  longer can bring deleted records back.
+- Settings (currency, theme, lock) are per device and are not synced.
 - Reorder uses up/down buttons rather than drag and drop.
 - Recurring rules support expenses and income; recurring transfers are modelled but not exposed
   in the UI.
@@ -185,4 +260,5 @@ categories:
 - Drag-and-drop reordering and home-screen widgets
 - Weekly and yearly budgets, budget rollover
 - Attachments (receipt photos) and tags
-- Encrypted backup files and scheduled automatic backups
+- Encrypted backup files
+- Google Drive sync on Android

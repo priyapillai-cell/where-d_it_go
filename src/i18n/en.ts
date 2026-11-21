@@ -335,7 +335,8 @@ export const en = {
     shareUnavailable: 'Sharing is not available on this device',
     about: 'About',
     version: 'Version {{version}}',
-    privacy: 'Your data stays on this device. No accounts, ads or trackers.',
+    privacy:
+      'Your data stays on this device unless you turn on Google Drive sync. No ads or trackers.',
     multiCurrency: 'Multi-currency',
     multiCurrencyHint: 'Each account keeps its own currency; totals are shown per currency.',
   },
