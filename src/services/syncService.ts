@@ -99,7 +99,7 @@ export async function syncDatabase(
       }
     }
 
-    if (mode === 'adoptRemote' && attempt === 0) {
+    if (mode === 'adoptRemote' && attempt === 0 && stored) {
       const records: Partial<Record<SyncTable, SyncRecord[]>> = {};
       for (const table of SYNC_TABLES) records[table] = remote[table];
       pulled += await db.transaction(async (tx) => {
