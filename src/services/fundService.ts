@@ -1,3 +1,4 @@
+import { getAccount } from '@/db/repositories/accountRepository';
 import {
   countFundEntries,
   deleteFund as deleteFundRow,
@@ -13,10 +14,12 @@ import {
   upsertFundEntry,
 } from '@/db/repositories/fundRepository';
 import type { SqlDatabase } from '@/db/sqlDatabase';
+import { monthKey } from '@/domain/carryover';
 import { moveInList } from '@/domain/ordering';
 import { type FundSummary, fundTotalsByCurrency, summarizeFund } from '@/domain/sinkingFunds';
 import {
   err,
+  type FundAutoMode,
   type FundEntry,
   type FundEntryType,
   type MinorUnits,
@@ -40,10 +43,12 @@ export interface FundInput {
   targetAmount: MinorUnits | null;
   targetDate: string | null;
   monthlyContribution: MinorUnits | null;
+  autoMode?: FundAutoMode | null;
+  autoAccountId?: string | null;
 }
 
 export type FundFieldErrors = FieldErrors<
-  'name' | 'currency' | 'targetAmount' | 'targetDate' | 'monthlyContribution'
+  'name' | 'currency' | 'targetAmount' | 'targetDate' | 'monthlyContribution' | 'autoAccount'
 >;
 
 export async function saveFund(
@@ -52,7 +57,13 @@ export async function saveFund(
   existingId?: string,
   now: Date = new Date(),
 ): Promise<Result<SinkingFund, FundFieldErrors>> {
-  const draft = { ...input, name: input.name.trim() };
+  const autoMode = input.autoMode ?? null;
+  const draft = {
+    ...input,
+    name: input.name.trim(),
+    autoMode,
+    autoAccountId: autoMode ? (input.autoAccountId ?? null) : null,
+  };
   const errors: FundFieldErrors = validateFundDraft(draft);
   if (hasErrors(errors)) return err(errors);
 
@@ -65,6 +76,16 @@ export async function saveFund(
     ) {
       return err<FundFieldErrors>({ currency: 'currencyLocked' });
     }
+    if (draft.autoAccountId) {
+      const account = await getAccount(tx, draft.autoAccountId);
+      if (!account || account.isArchived) return err<FundFieldErrors>({ autoAccount: 'required' });
+      if (account.currency !== draft.currency) {
+        return err<FundFieldErrors>({ autoAccount: 'currencyMismatch' });
+      }
+    }
+    // Turning carryover on (or pointing it at another account) starts with the next 1st.
+    const keepsSchedule =
+      !!existing && existing.autoMode !== null && existing.autoAccountId === draft.autoAccountId;
     const fund: SinkingFund = {
       id: existing?.id ?? newId(),
       name: draft.name,
@@ -74,6 +95,13 @@ export async function saveFund(
       targetAmount: draft.targetAmount,
       targetDate: draft.targetDate,
       monthlyContribution: draft.monthlyContribution,
+      autoMode: draft.autoMode,
+      autoAccountId: draft.autoAccountId,
+      autoLastMonth: draft.autoMode
+        ? keepsSchedule
+          ? existing.autoLastMonth
+          : monthKey(now)
+        : null,
       isArchived: existing?.isArchived ?? false,
       sortOrder: existing?.sortOrder ?? (await nextFundSortOrder(tx)),
       createdAt: existing?.createdAt ?? now.toISOString(),
@@ -138,6 +166,7 @@ export async function saveFundEntry(
       amount: input.amount,
       note: input.note.trim(),
       date: new Date(input.date).toISOString(),
+      accountId: existing?.accountId ?? null,
       createdAt: existing?.createdAt ?? nowIso,
       updatedAt: nowIso,
     };

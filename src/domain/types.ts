@@ -93,6 +93,13 @@ export interface Budget {
  * Money set aside for an irregular, larger expense (gifts, vacations). Tracked separately from
  * daily accounts: fund entries never change account balances or the daily overview.
  */
+/**
+ * Monthly carryover into a fund on the 1st: `fixed` moves the monthly plan amount, `leftover`
+ * moves what the source account gained in the previous month (income minus spending).
+ */
+export type FundAutoMode = 'fixed' | 'leftover';
+export const FUND_AUTO_MODES: readonly FundAutoMode[] = ['fixed', 'leftover'];
+
 export interface SinkingFund {
   id: string;
   name: string;
@@ -105,6 +112,11 @@ export interface SinkingFund {
   targetDate: string | null;
   /** Planned amount to set aside each month. */
   monthlyContribution: MinorUnits | null;
+  autoMode: FundAutoMode | null;
+  /** Account the monthly carryover is taken from. */
+  autoAccountId: string | null;
+  /** Last month (YYYY-MM) whose carryover was processed. */
+  autoLastMonth: string | null;
   isArchived: boolean;
   sortOrder: number;
   createdAt: IsoTimestamp;
@@ -121,6 +133,8 @@ export interface FundEntry {
   amount: MinorUnits;
   note: string;
   date: IsoTimestamp;
+  /** For deposits moved out of an account: the account, whose balance it reduces. */
+  accountId: string | null;
   createdAt: IsoTimestamp;
   updatedAt: IsoTimestamp;
 }

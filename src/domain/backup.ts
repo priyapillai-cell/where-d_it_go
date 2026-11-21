@@ -104,6 +104,13 @@ export const sinkingFundSchema = z.object({
   targetAmount: positiveMinor.nullable(),
   targetDate: calendarDay.nullable(),
   monthlyContribution: positiveMinor.nullable(),
+  autoMode: z.enum(['fixed', 'leftover']).nullable().default(null),
+  autoAccountId: id.nullable().default(null),
+  autoLastMonth: z
+    .string()
+    .regex(/^\d{4}-\d{2}$/)
+    .nullable()
+    .default(null),
   isArchived: z.boolean(),
   sortOrder: z.number().int(),
   createdAt: isoDate,
@@ -116,6 +123,7 @@ export const fundEntrySchema = z.object({
   amount: positiveMinor,
   note: shortText,
   date: isoDate,
+  accountId: id.nullable().default(null),
   createdAt: isoDate,
   updatedAt: isoDate,
 }) satisfies z.ZodType<FundEntry>;
@@ -218,9 +226,15 @@ function checkIntegrity(data: BackupData): string[] {
     if (b.categoryId !== null && !categoryIds.has(b.categoryId))
       issues.push(`Budget ${b.id}: unknown category`);
   });
+  data.sinkingFunds.forEach((f) => {
+    if (f.autoAccountId !== null && !accountIds.has(f.autoAccountId))
+      issues.push(`Sinking fund ${f.id}: unknown carryover account`);
+  });
   const fundIds = new Set(data.sinkingFunds.map((f) => f.id));
   data.fundEntries.forEach((e) => {
     if (!fundIds.has(e.fundId)) issues.push(`Fund entry ${e.id}: unknown sinking fund`);
+    if (e.accountId !== null && !accountIds.has(e.accountId))
+      issues.push(`Fund entry ${e.id}: unknown account`);
   });
   return issues.slice(0, 20);
 }

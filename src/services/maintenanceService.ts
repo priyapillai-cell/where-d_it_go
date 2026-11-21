@@ -2,6 +2,7 @@ import type { SqlDatabase } from '@/db/sqlDatabase';
 import { logger } from '@/utils/logger';
 
 import { runBudgetAlerts } from './budgetAlertService';
+import { runFundCarryovers } from './carryoverService';
 import { generateDueTransactions } from './recurringService';
 import { syncReminders } from './reminderService';
 
@@ -18,7 +19,12 @@ export async function runMaintenance(
   const { created, failedRules } = await generateDueTransactions(db, now);
   if (created > 0 || failedRules > 0)
     logger.info(`Recurring (${source}): ${created} created, ${failedRules} failed`);
+  const carried = await runFundCarryovers(db, now).catch((error: unknown) => {
+    logger.warn('Fund carryover failed', error);
+    return 0;
+  });
+  if (carried > 0) logger.info(`Carryover (${source}): ${carried} deposits`);
   await runBudgetAlerts(db);
   await syncReminders(db, now);
-  return created;
+  return created + carried;
 }

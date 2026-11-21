@@ -77,3 +77,44 @@ it('rejects fund entries that point at a missing fund', () => {
   expect(parsed.ok).toBe(false);
   if (!parsed.ok) expect(parsed.error.kind).toBe('integrity');
 });
+
+it('reads funds saved before monthly carryover existed', () => {
+  const backup = createBackup(sampleData());
+  const {
+    autoMode: _m,
+    autoAccountId: _a,
+    autoLastMonth: _l,
+    ...oldFund
+  } = backup.data.sinkingFunds[0]!;
+  const { accountId: _e, ...oldEntry } = backup.data.fundEntries[0]!;
+  const parsed = parseBackup(
+    JSON.stringify({
+      ...backup,
+      data: { ...backup.data, sinkingFunds: [oldFund], fundEntries: [oldEntry] },
+    }),
+  );
+  expect(parsed.ok && parsed.value.data.sinkingFunds[0]).toEqual(
+    expect.objectContaining({ autoMode: null, autoAccountId: null, autoLastMonth: null }),
+  );
+  expect(parsed.ok && parsed.value.data.fundEntries[0]?.accountId).toBeNull();
+});
+
+it('round-trips carryover settings and rejects unknown carryover accounts', () => {
+  const data = sampleData();
+  const withCarryover: BackupData = {
+    ...data,
+    sinkingFunds: [
+      makeFund({ id: 'f1', autoMode: 'leftover', autoAccountId: 'a1', autoLastMonth: '2026-11' }),
+    ],
+    fundEntries: [makeFundEntry({ id: 'e1', fundId: 'f1', accountId: 'a1' })],
+  };
+  const backup = createBackup(withCarryover, new Date('2026-11-21T00:00:00.000Z'));
+  expect(parseBackup(JSON.stringify(backup))).toEqual({ ok: true, value: backup });
+
+  const dangling = createBackup({
+    ...withCarryover,
+    sinkingFunds: [makeFund({ id: 'f1', autoMode: 'fixed', autoAccountId: 'gone' })],
+  });
+  const parsed = parseBackup(JSON.stringify(dangling));
+  expect(!parsed.ok && parsed.error.kind).toBe('integrity');
+});

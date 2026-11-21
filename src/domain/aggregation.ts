@@ -4,7 +4,7 @@ import { netChangeForAccounts } from './balance';
 import { dayKey, type PeriodOptions, startOfCustomMonth } from './periods';
 import type { CategoryType, MinorUnits, Transaction } from './types';
 
-type AggregatableTransaction = Pick<
+export type AggregatableTransaction = Pick<
   Transaction,
   'type' | 'amount' | 'toAmount' | 'accountId' | 'toAccountId' | 'categoryId' | 'date'
 >;

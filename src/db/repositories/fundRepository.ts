@@ -18,12 +18,15 @@ export async function getFund(db: SqlExecutor, id: string): Promise<SinkingFund 
 export async function upsertFund(db: SqlExecutor, f: SinkingFund): Promise<void> {
   await db.run(
     `INSERT INTO sinking_funds (id, name, icon, color, currency, target_amount, target_date,
-       monthly_contribution, is_archived, sort_order, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       monthly_contribution, auto_mode, auto_account_id, auto_last_month, is_archived,
+       sort_order, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET name = excluded.name, icon = excluded.icon,
        color = excluded.color, currency = excluded.currency,
        target_amount = excluded.target_amount, target_date = excluded.target_date,
-       monthly_contribution = excluded.monthly_contribution, is_archived = excluded.is_archived,
+       monthly_contribution = excluded.monthly_contribution, auto_mode = excluded.auto_mode,
+       auto_account_id = excluded.auto_account_id, auto_last_month = excluded.auto_last_month,
+       is_archived = excluded.is_archived,
        sort_order = excluded.sort_order`,
     [
       f.id,
@@ -34,6 +37,9 @@ export async function upsertFund(db: SqlExecutor, f: SinkingFund): Promise<void>
       f.targetAmount,
       f.targetDate,
       f.monthlyContribution,
+      f.autoMode,
+      f.autoAccountId,
+      f.autoLastMonth,
       bool(f.isArchived),
       f.sortOrder,
       f.createdAt,
@@ -66,6 +72,22 @@ export async function listAllFundEntries(db: SqlExecutor): Promise<FundEntry[]> 
   return rows.map(toFundEntry);
 }
 
+/** Deposits that were taken out of one of `accountIds`, with `fromIso <= date < toIso`. */
+export async function listAccountDeposits(
+  db: SqlExecutor,
+  { from, to, accountIds }: { from: string; to: string; accountIds: readonly string[] },
+): Promise<FundEntry[]> {
+  if (accountIds.length === 0) return [];
+  const rows = await db.all<FundEntryRow>(
+    `SELECT * FROM fund_entries
+     WHERE type = 'deposit' AND date >= ? AND date < ?
+       AND account_id IN (${accountIds.map(() => '?').join(', ')})
+     ORDER BY date`,
+    [from, to, ...accountIds],
+  );
+  return rows.map(toFundEntry);
+}
+
 export async function listFundEntries(db: SqlExecutor, fundId: string): Promise<FundEntry[]> {
   const rows = await db.all<FundEntryRow>(
     'SELECT * FROM fund_entries WHERE fund_id = ? ORDER BY date DESC, created_at DESC',
@@ -89,15 +111,46 @@ export async function countFundEntries(db: SqlExecutor, fundId: string): Promise
 
 export async function upsertFundEntry(db: SqlExecutor, e: FundEntry): Promise<void> {
   await db.run(
-    `INSERT INTO fund_entries (id, fund_id, type, amount, note, date, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO fund_entries (id, fund_id, type, amount, note, date, account_id, created_at,
+       updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET fund_id = excluded.fund_id, type = excluded.type,
        amount = excluded.amount, note = excluded.note, date = excluded.date,
-       updated_at = excluded.updated_at`,
-    [e.id, e.fundId, e.type, e.amount, e.note, e.date, e.createdAt, e.updatedAt],
+       account_id = excluded.account_id, updated_at = excluded.updated_at`,
+    entryParams(e),
   );
 }
 
 export async function deleteFundEntry(db: SqlExecutor, id: string): Promise<void> {
   await db.run('DELETE FROM fund_entries WHERE id = ?', [id]);
+}
+
+function entryParams(e: FundEntry) {
+  return [e.id, e.fundId, e.type, e.amount, e.note, e.date, e.accountId, e.createdAt, e.updatedAt];
+}
+
+/** Inserts unless an entry with the same id exists (deterministic carryover ids). */
+export async function insertFundEntryIfAbsent(db: SqlExecutor, e: FundEntry): Promise<boolean> {
+  const result = await db.run(
+    `INSERT OR IGNORE INTO fund_entries (id, fund_id, type, amount, note, date, account_id,
+       created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    entryParams(e),
+  );
+  return result.changes > 0;
+}
+
+/** Automatic carryover deposits taken from an account with `fromIso <= date < toIso`. */
+export async function carryoverTakenFromAccount(
+  db: SqlExecutor,
+  accountId: string,
+  fromIso: string,
+  toIso: string,
+): Promise<number> {
+  const row = await db.first<{ total: number | null }>(
+    `SELECT SUM(amount) AS total FROM fund_entries
+     WHERE account_id = ? AND type = 'deposit' AND id LIKE 'carry-%' AND date >= ? AND date < ?`,
+    [accountId, fromIso, toIso],
+  );
+  return row?.total ?? 0;
 }

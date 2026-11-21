@@ -1,5 +1,5 @@
 import { isValidCurrencyCode } from './money';
-import type { Frequency, MinorUnits, TransactionType } from './types';
+import type { Frequency, FundAutoMode, MinorUnits, TransactionType } from './types';
 
 export type ValidationCode =
   | 'required'
@@ -13,7 +13,8 @@ export type ValidationCode =
   | 'missingToAccount'
   | 'invalidInterval'
   | 'endBeforeStart'
-  | 'currencyLocked';
+  | 'currencyLocked'
+  | 'currencyMismatch';
 
 export type FieldErrors<K extends string> = Partial<Record<K, ValidationCode>>;
 
@@ -104,13 +105,17 @@ export interface FundDraft {
   targetAmount: MinorUnits | null;
   targetDate: string | null;
   monthlyContribution: MinorUnits | null;
+  autoMode?: FundAutoMode | null;
+  autoAccountId?: string | null;
 }
 
 const CALENDAR_DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 export function validateFundDraft(
   draft: FundDraft,
-): FieldErrors<'name' | 'currency' | 'targetAmount' | 'targetDate' | 'monthlyContribution'> {
+): FieldErrors<
+  'name' | 'currency' | 'targetAmount' | 'targetDate' | 'monthlyContribution' | 'autoAccount'
+> {
   return {
     name: validateName(draft.name),
     currency: isValidCurrencyCode(draft.currency) ? undefined : 'invalidCurrency',
@@ -122,7 +127,12 @@ export function validateFundDraft(
           ? undefined
           : 'invalidDate',
     monthlyContribution:
-      draft.monthlyContribution === null ? undefined : validateAmount(draft.monthlyContribution),
+      draft.monthlyContribution === null
+        ? draft.autoMode === 'fixed'
+          ? 'required'
+          : undefined
+        : validateAmount(draft.monthlyContribution),
+    autoAccount: draft.autoMode && !draft.autoAccountId ? 'missingAccount' : undefined,
   };
 }
 

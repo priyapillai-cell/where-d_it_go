@@ -1,9 +1,12 @@
 import { addDays, startOfDay } from 'date-fns';
 
 import { accountFlows, listAccounts } from '@/db/repositories/accountRepository';
+import { listAccountDeposits } from '@/db/repositories/fundRepository';
 import { earliestTransactionDate, listInRange } from '@/db/repositories/transactionRepository';
 import type { SqlDatabase } from '@/db/sqlDatabase';
+import type { AggregatableTransaction } from '@/domain/aggregation';
 import { computeBalance } from '@/domain/balance';
+import { depositsAsOutflows } from '@/domain/carryover';
 import {
   type Period,
   type PeriodOptions,
@@ -20,6 +23,8 @@ export interface ReportData {
   transactions: Transaction[];
   /** Combined balance of the scoped accounts at `start`. */
   openingBalance: MinorUnits;
+  /** Money the scoped accounts moved into sinking funds, as outgoing transfers. */
+  fundOutflows: AggregatableTransaction[];
   thisMonth: Transaction[];
   lastMonth: Transaction[];
 }
@@ -42,8 +47,10 @@ export async function loadReport(
   const month = periodContaining('month', now, options);
   const previousMonth = shiftPeriod(month, -1, options);
 
-  const [transactions, accounts, flowsBefore, thisMonth, lastMonth] = await Promise.all([
-    listInRange(db, { from: startIso, to: end.toISOString(), accountIds }),
+  const range = { from: startIso, to: end.toISOString(), accountIds };
+  const [transactions, deposits, accounts, flowsBefore, thisMonth, lastMonth] = await Promise.all([
+    listInRange(db, range),
+    listAccountDeposits(db, range),
     listAccounts(db),
     accountFlows(db, startIso),
     listInRange(db, { ...periodToIsoRange(month), accountIds }),
@@ -55,5 +62,13 @@ export async function loadReport(
     .filter((a) => scoped.has(a.id))
     .reduce((sum, a) => sum + computeBalance(a, flowsBefore.get(a.id)), 0);
 
-  return { start, end, transactions, openingBalance, thisMonth, lastMonth };
+  return {
+    start,
+    end,
+    transactions,
+    openingBalance,
+    fundOutflows: depositsAsOutflows(deposits),
+    thisMonth,
+    lastMonth,
+  };
 }

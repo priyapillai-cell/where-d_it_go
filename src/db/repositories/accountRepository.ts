@@ -84,7 +84,7 @@ export async function accountFlows(
   beforeIso?: string,
 ): Promise<Map<string, AccountFlow>> {
   const dateClause = beforeIso ? 'AND date < ?' : '';
-  const params = beforeIso ? [beforeIso, beforeIso] : [];
+  const params = beforeIso ? [beforeIso, beforeIso, beforeIso] : [];
   const rows = await db.all<{
     account_id: string;
     income: number;
@@ -102,6 +102,9 @@ export async function accountFlows(
        UNION ALL
        SELECT to_account_id AS account_id, 0, 0, 0, SUM(IFNULL(to_amount, amount))
        FROM transactions WHERE type = 'transfer' AND to_account_id IS NOT NULL ${dateClause} GROUP BY to_account_id
+       UNION ALL
+       SELECT account_id, 0, 0, SUM(amount), 0
+       FROM fund_entries WHERE type = 'deposit' AND account_id IS NOT NULL ${dateClause} GROUP BY account_id
      ) GROUP BY account_id`,
     params,
   );

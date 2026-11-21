@@ -1,9 +1,10 @@
 import { insertAccount } from '@/db/repositories/accountRepository';
+import { upsertFund, upsertFundEntry } from '@/db/repositories/fundRepository';
 import { insertTransaction } from '@/db/repositories/transactionRepository';
 import type { SqlDatabase } from '@/db/sqlDatabase';
 import { balanceSeries } from '@/domain/aggregation';
 import { DEFAULT_PERIOD_OPTIONS, periodContaining } from '@/domain/periods';
-import { makeAccount, makeTransaction } from '@/test/factories';
+import { makeAccount, makeFund, makeFundEntry, makeTransaction } from '@/test/factories';
 import { createTestDatabase } from '@/test/nodeDatabase';
 
 import { loadReport } from '../reportService';
@@ -82,4 +83,33 @@ it('starts an all-time report at the first transaction', async () => {
   expect(report.start.toISOString()).toBe('2026-02-10T00:00:00.000Z');
   expect(report.openingBalance).toBe(10500);
   expect(report.transactions).toHaveLength(3);
+});
+
+it('counts money moved into sinking funds as leaving the account', async () => {
+  await upsertFund(db, makeFund({ id: 'f' }));
+  await upsertFundEntry(
+    db,
+    makeFundEntry({ fundId: 'f', amount: 400, accountId: 'a', date: '2026-02-01T00:00:00.000Z' }),
+  );
+  await upsertFundEntry(
+    db,
+    makeFundEntry({ fundId: 'f', amount: 250, accountId: 'b', date: '2026-03-01T00:00:00.000Z' }),
+  );
+  const march = periodContaining('month', now, DEFAULT_PERIOD_OPTIONS);
+  const report = await loadReport(db, march, ['a', 'b'], DEFAULT_PERIOD_OPTIONS, now);
+  expect(report.openingBalance).toBe(10000 - 2000 - 1000 - 400 + 500);
+  expect(report.fundOutflows).toEqual([
+    expect.objectContaining({ type: 'transfer', amount: 250, accountId: 'b', toAccountId: null }),
+  ]);
+
+  const series = balanceSeries(
+    report.openingBalance,
+    [...report.transactions, ...report.fundOutflows],
+    new Set(['a', 'b']),
+    report.start,
+    report.end,
+    'month',
+    DEFAULT_PERIOD_OPTIONS,
+  );
+  expect(series.at(-1)?.balance).toBe(10500 - 400 - 250);
 });

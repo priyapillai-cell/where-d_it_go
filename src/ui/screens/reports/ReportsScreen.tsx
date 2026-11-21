@@ -153,7 +153,7 @@ export function ReportsScreen() {
   const bars = incomeExpenseSeries(data.transactions, data.start, data.end, granularity, options);
   const balance = balanceSeries(
     data.openingBalance,
-    data.transactions,
+    [...data.transactions, ...data.fundOutflows],
     new Set(scope.accountIds),
     data.start,
     data.end,

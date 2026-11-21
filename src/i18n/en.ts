@@ -514,6 +514,7 @@ export const en = {
     endBeforeStart: 'End date must be after the first date',
     invalidNumber: 'Enter a valid number',
     currencyLocked: 'The currency cannot change once the account has transactions',
+    currencyMismatch: 'This account uses a different currency',
   },
   notifications: {
     channelName: 'Reminders and budget alerts',
@@ -579,6 +580,22 @@ export const en = {
     rowA11y: '{{name}}, balance {{balance}}. {{status}}',
     progressA11y: '{{percent}} of target',
     currencyLocked: 'The currency cannot change once the fund has entries',
+    carryover: 'Monthly carryover',
+    carryoverOff: 'Off',
+    carryoverFixed: 'Fixed amount',
+    carryoverLeftover: 'Leftover',
+    carryoverFrom: 'Move from account',
+    carryoverHintFixed:
+      'On the 1st of every month, the monthly plan amount moves from {{account}} into this fund.',
+    carryoverHintLeftover:
+      "On the 1st of every month, what's left in {{account}} from the previous month (income minus spending) moves into this fund.",
+    carryoverHintNoAccount: 'Choose the account the money comes from.',
+    carryoverStarts: 'The first carryover happens on {{date}}.',
+    carryoverNeedsMonthly: 'Enter the monthly amount to move',
+    carryoverSummaryFixed: 'Carries over {{amount}} from {{account}} on the 1st',
+    carryoverSummaryLeftover: "Carries over last month's leftover from {{account}} on the 1st",
+    carriedFrom: 'Carried over from {{account}}',
+    carriedFromDeleted: 'Carried over from a deleted account',
   },
   excel: {
     sheetTransactions: 'Transactions',

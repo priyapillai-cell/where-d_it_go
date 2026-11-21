@@ -4,6 +4,17 @@ import type { SqlDatabase } from './sqlDatabase';
  * Ordered, append-only schema migrations. Index + 1 is the schema version stored in
  * `PRAGMA user_version`. Never edit a released migration; add a new one instead.
  */
+// Version 4: monthly carryover from an account into a sinking fund.
+const FUND_CARRYOVER_MIGRATION = `
+  ALTER TABLE sinking_funds ADD COLUMN auto_mode TEXT
+    CHECK (auto_mode IS NULL OR auto_mode IN ('fixed', 'leftover'));
+  ALTER TABLE sinking_funds ADD COLUMN auto_account_id TEXT
+    REFERENCES accounts(id) ON DELETE SET NULL;
+  ALTER TABLE sinking_funds ADD COLUMN auto_last_month TEXT;
+  ALTER TABLE fund_entries ADD COLUMN account_id TEXT REFERENCES accounts(id) ON DELETE SET NULL;
+  CREATE INDEX idx_fund_entries_account ON fund_entries(account_id, date);
+`;
+
 export const MIGRATIONS: readonly string[] = [
   `
   CREATE TABLE accounts (
@@ -131,6 +142,7 @@ export const MIGRATIONS: readonly string[] = [
     'budgets',
     'fund_entries',
   ]),
+  FUND_CARRYOVER_MIGRATION,
 ];
 
 /**
