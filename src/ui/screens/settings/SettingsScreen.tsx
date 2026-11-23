@@ -133,11 +133,11 @@ export function SettingsScreen() {
     const db = await getDatabase();
     switch (kind) {
       case 'csv':
-        return ['pocket-ledger-transactions', await exportCsv(db)];
+        return ['whered-it-go-transactions', await exportCsv(db)];
       case 'xlsx':
-        return ['pocket-ledger-transactions', await exportExcel(db, excelLabels())];
+        return ['whered-it-go-transactions', await exportExcel(db, excelLabels())];
       case 'json':
-        return ['pocket-ledger-backup', await exportBackupJson(db)];
+        return ['whered-it-go-backup', await exportBackupJson(db)];
       default:
         return assertNever(kind);
     }

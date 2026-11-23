@@ -1,4 +1,4 @@
-# Pocket Ledger
+# Where'd It Go?
 
 A fast, offline-first personal expense tracker inspired by Monefy. Everything is stored on the
 device in SQLite: no sign-up, no backend server, no ads and no analytics. Optionally, the app
@@ -15,7 +15,7 @@ syncs with the user's own Google Drive.
 - Sinking funds for occasional big expenses (gifts, vacations): savings goals with a target,
   date and monthly plan, tracked separately from daily spending and account balances
 - Google Drive (iOS): two-way sync between devices, daily backups kept for 30 days, and an
-  always up-to-date `Pocket Ledger.xlsx` spreadsheet in a "Pocket Ledger" folder
+  always up-to-date `Where'd It Go.xlsx` spreadsheet in a "Where'd It Go" folder
 - Reports: spending by category, income vs expenses, balance over time, this month vs last month
 - Settings: currency, theme, language, first day of week/month, passcode and biometric lock,
   CSV and Excel export, CSV import with column mapping, JSON backup/restore and the share sheet, delete all data

@@ -86,7 +86,7 @@ export function ListSkeleton({ rows = 6 }: { rows?: number }) {
   return (
     <View
       style={styles.skeletonList}
-      accessibilityLabel={t('app.loading')}
+      accessibilityLabel={t('app.loadingContent')}
       accessibilityRole="progressbar"
     >
       {Array.from({ length: rows }, (_, i) => (

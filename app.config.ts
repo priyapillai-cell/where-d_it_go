@@ -18,7 +18,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
 
   return {
     ...config,
-    name: config.name ?? 'Pocket Ledger',
+    name: config.name ?? "Where'd It Go?",
     slug: config.slug ?? 'pocket-ledger',
     scheme: googleScheme ? [...baseSchemes, googleScheme] : baseSchemes,
     ios: {

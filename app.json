@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Pocket Ledger",
+    "name": "Where'd It Go?",
     "slug": "pocket-ledger",
     "scheme": "pocketledger",
     "version": "1.0.0",
@@ -46,7 +46,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Allow Pocket Ledger to use Face ID to unlock the app."
+          "faceIDPermission": "Allow Where'd It Go? to use Face ID to unlock the app."
         }
       ],
       "expo-notifications",

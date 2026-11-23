@@ -1,7 +1,8 @@
 export const en = {
   app: {
-    name: 'Pocket Ledger',
-    loading: 'Loading your ledger…',
+    name: "Where'd It Go?",
+    loading: "Where'd It Go?",
+    loadingContent: 'Loading…',
     startupFailed: 'The app could not start',
     retry: 'Try again',
   },
@@ -60,6 +61,10 @@ export const en = {
     expenses: 'Expenses',
     incomes: 'Income',
   },
+  calendar: {
+    previousMonth: 'Previous month',
+    nextMonth: 'Next month',
+  },
   periods: {
     day: 'Day',
     week: 'Week',
@@ -71,6 +76,8 @@ export const en = {
     next: 'Next period',
     chooseRange: 'Choose date range',
     allTime: 'All time',
+    choosePeriod: 'Show period',
+    choosePeriodA11y: 'Choose period: {{period}}',
   },
   home: {
     allAccounts: 'All accounts',
@@ -204,6 +211,12 @@ export const en = {
       'Existing transactions keep this category. It will no longer appear when adding.',
     empty: 'No categories of this type',
     preview: 'Preview',
+    deleteConfirm: 'Delete "{{name}}"?',
+    deleteConfirmEmpty: 'This category is not used anywhere yet.',
+    deleteConfirmWithData:
+      '{{transactions}} transactions and {{rules}} recurring payments use it. They will be kept as "Uncategorized".',
+    deleteConfirmBudget: 'Its budget will be removed.',
+    deleted: 'Category deleted',
   },
   budgets: {
     title: 'Budgets',
@@ -360,7 +373,7 @@ export const en = {
     wrong: 'Wrong passcode',
     lockedOut: 'Too many attempts. Try again in {{seconds}} s.',
     unlockWithBiometrics: 'Unlock with biometrics',
-    biometricPrompt: 'Unlock Pocket Ledger',
+    biometricPrompt: "Unlock Where'd It Go?",
     passcodeSet: 'Passcode enabled',
     passcodeRemoved: 'Passcode removed',
     digit: 'Digit {{digit}}',
@@ -460,7 +473,7 @@ export const en = {
     autoBackup: 'Daily backup to Drive',
     autoBackupHint: 'Keeps the last 30 days in a private app folder',
     sheet: 'Spreadsheet in Drive',
-    sheetHint: 'Updates "Pocket Ledger.xlsx" in a "Pocket Ledger" folder after each sync',
+    sheetHint: 'Updates "Where\'d It Go.xlsx" in a "Where\'d It Go" folder after each sync',
     openSheet: 'Open folder in Google Drive',
     sectionBackups: 'Backups in Drive',
     backupNow: 'Back up now',
@@ -478,7 +491,7 @@ export const en = {
     choiceUseDriveConfirmBody:
       'Everything on this device is replaced by the data in Google Drive. Consider creating a backup first.',
     privacy:
-      'Pocket Ledger can only see files it creates. Your data goes straight from this device to your Google account.',
+      "Where'd It Go? can only see files it creates. Your data goes straight from this device to your Google account.",
     unavailable: {
       expoGo:
         'Google sign-in does not work in Expo Go. Install a development build of the app to connect Google Drive.',
@@ -491,7 +504,7 @@ export const en = {
       signedOut: 'Google access expired or was revoked. Connect again to resume sync.',
       remoteInvalid: 'The sync file in Google Drive is damaged.',
       remoteNewerApp:
-        'Another device uses a newer version of Pocket Ledger. Update this app to sync.',
+        "Another device uses a newer version of Where'd It Go? Update this app to sync.",
       conflict: 'Another device was syncing at the same time. Try again in a moment.',
       unknown: 'Sync failed. Try again later.',
     },

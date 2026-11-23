@@ -6,8 +6,8 @@ import { type DriveClient, type DriveFile, FOLDER_MIME } from './driveClient';
 export const SYNC_FILE_NAME = 'pocket-ledger-sync.json';
 export const BACKUP_PREFIX = 'pocket-ledger-backup-';
 export const BACKUPS_TO_KEEP = 30;
-export const SHEET_FOLDER_NAME = 'Pocket Ledger';
-export const SHEET_FILE_NAME = 'Pocket Ledger.xlsx';
+export const SHEET_FOLDER_NAME = "Where'd It Go";
+export const SHEET_FILE_NAME = "Where'd It Go.xlsx";
 export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const JSON_MIME = 'application/json';
 
@@ -85,7 +85,7 @@ export interface SheetLocation {
   fileId: string | null;
 }
 
-/** Creates or refreshes the spreadsheet in a visible "Pocket Ledger" folder in My Drive. */
+/** Creates or refreshes the spreadsheet in a visible "Where'd It Go" folder in My Drive. */
 export async function uploadSpreadsheet(
   drive: DriveClient,
   bytes: Uint8Array,

@@ -43,6 +43,7 @@ export function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [accountSheet, setAccountSheet] = useState(false);
+  const [periodMenu, setPeriodMenu] = useState(false);
 
   const settings = useAppStore((s) => s.settings);
   const accounts = useAppStore((s) => s.accounts);
@@ -150,6 +151,21 @@ export function HomeScreen() {
           label={t('nav.openMenu')}
           onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
         />
+        <AppText
+          variant="subtitle"
+          accessibilityRole="header"
+          numberOfLines={1}
+          style={styles.flex}
+        >
+          {t('app.name')}
+        </AppText>
+        <IconButton
+          icon="filter-variant"
+          label={t('periods.choosePeriodA11y', { period: t(`periods.${period.kind}`) })}
+          onPress={() => setPeriodMenu(true)}
+        />
+      </View>
+      <View style={styles.accountHeader}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${selectedAccount?.name ?? t('home.allAccounts')}. ${t('home.balance')} ${balanceLines.join(', ')}`}
@@ -172,11 +188,6 @@ export function HomeScreen() {
             </AppText>
           ) : null}
         </Pressable>
-        <IconButton
-          icon="format-list-bulleted"
-          label={t('nav.transactions')}
-          onPress={() => router.push('/transactions')}
-        />
       </View>
 
       <PeriodSelector
@@ -184,6 +195,7 @@ export function HomeScreen() {
         onKindChange={(kind) => setKind(kind, periodOptions)}
         onShift={(direction) => shift(direction, periodOptions)}
         onCustomRange={setCustom}
+        kindMenu={{ visible: periodMenu, onClose: () => setPeriodMenu(false) }}
       />
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 120 + insets.bottom }]}>
@@ -347,6 +359,7 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, gap: 4 },
+  accountHeader: { flexDirection: 'row', paddingHorizontal: 16 },
   accountButton: { flex: 1, alignItems: 'center', minHeight: 48, justifyContent: 'center' },
   accountRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   scroll: { alignItems: 'center', paddingTop: 8 },

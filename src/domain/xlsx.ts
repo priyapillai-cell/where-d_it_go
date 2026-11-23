@@ -315,7 +315,7 @@ export function buildXlsx(sheets: readonly XlsxSheet[], now: Date = new Date()):
     '</cp:coreProperties>';
   const app =
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
-    '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>Pocket Ledger</Application></Properties>';
+    '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>Where&apos;d It Go?</Application></Properties>';
 
   const files: Zippable = {
     '[Content_Types].xml': strToU8(contentTypes),
