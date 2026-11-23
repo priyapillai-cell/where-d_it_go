@@ -8,6 +8,7 @@ import { useTheme } from '../theme/ThemeProvider';
 import { AppText } from './AppText';
 import { Button } from './Button';
 import { Icon } from './Icon';
+import { Logo } from './Logo';
 
 /** Full-screen overlay shown until the database is open, seeded and loaded. */
 export function StartupGate() {
@@ -21,10 +22,12 @@ export function StartupGate() {
     >
       {status === 'loading' ? (
         <>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <AppText variant="body" color="textSecondary">
-            {t('app.loading')}
-          </AppText>
+          <Logo height={136} />
+          <ActivityIndicator
+            size="large"
+            color={colors.primary}
+            accessibilityLabel={t('app.loading')}
+          />
         </>
       ) : (
         <>

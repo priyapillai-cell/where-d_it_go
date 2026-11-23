@@ -22,6 +22,7 @@ import { Button, IconButton } from '../../components/Button';
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { DonutChart } from '../../components/DonutChart';
 import { Icon } from '../../components/Icon';
+import { Logo } from '../../components/Logo';
 import { PeriodSelector } from '../../components/PeriodSelector';
 import { Skeleton } from '../../components/States';
 import { useDbQuery } from '../../hooks/useDbQuery';
@@ -151,14 +152,9 @@ export function HomeScreen() {
           label={t('nav.openMenu')}
           onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
         />
-        <AppText
-          variant="subtitle"
-          accessibilityRole="header"
-          numberOfLines={1}
-          style={styles.flex}
-        >
-          {t('app.name')}
-        </AppText>
+        <View style={styles.flex}>
+          <Logo height={40} />
+        </View>
         <IconButton
           icon="filter-variant"
           label={t('periods.choosePeriodA11y', { period: t(`periods.${period.kind}`) })}
