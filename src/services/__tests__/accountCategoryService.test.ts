@@ -1,4 +1,5 @@
 import { getAccount, insertAccount, listAccounts } from '@/db/repositories/accountRepository';
+import { listBudgets, upsertBudget } from '@/db/repositories/budgetRepository';
 import { insertCategory, listCategories } from '@/db/repositories/categoryRepository';
 import { insertRecurringRule, listRecurringRules } from '@/db/repositories/recurringRepository';
 import { insertTransaction, listAllTransactions } from '@/db/repositories/transactionRepository';
@@ -17,7 +18,13 @@ import {
   setAccountArchived,
   switchAccountsCurrency,
 } from '../accountService';
-import { moveCategory, saveCategory, setCategoryArchived } from '../categoryService';
+import {
+  categoryUsage,
+  deleteCategory,
+  moveCategory,
+  saveCategory,
+  setCategoryArchived,
+} from '../categoryService';
 
 let db: SqlDatabase;
 
@@ -180,5 +187,51 @@ describe('categoryService', () => {
     const categories = await listCategories(db);
     expect(categories.filter((c) => c.type === 'expense').map((c) => c.id)).toEqual(['e2', 'e1']);
     expect(categories.find((c) => c.id === 'e1')?.isArchived).toBe(true);
+  });
+
+  it('deletes a category and keeps its transactions as uncategorized', async () => {
+    await insertCategory(db, makeCategory({ id: 'food' }));
+    await insertCategory(db, makeCategory({ id: 'rent' }));
+    await insertAccount(db, makeAccount({ id: 'acc' }));
+    await insertTransaction(
+      db,
+      makeTransaction({ id: 't1', accountId: 'acc', categoryId: 'food' }),
+    );
+    await insertTransaction(
+      db,
+      makeTransaction({ id: 't2', accountId: 'acc', categoryId: 'rent' }),
+    );
+    await insertRecurringRule(db, makeRule({ id: 'r1', accountId: 'acc', categoryId: 'food' }));
+    await upsertBudget(db, {
+      id: 'b1',
+      categoryId: 'food',
+      period: 'monthly',
+      amount: 1000,
+      currency: 'USD',
+    });
+
+    expect(await categoryUsage(db, 'food')).toEqual({
+      transactions: 1,
+      recurringRules: 1,
+      budgets: 1,
+    });
+    expect(await deleteCategory(db, 'food', new Date('2026-11-23T10:00:00.000Z'))).toEqual({
+      ok: true,
+      value: undefined,
+    });
+
+    expect((await listCategories(db)).map((c) => c.id)).toEqual(['rent']);
+    const transactions = await listAllTransactions(db);
+    expect(transactions.find((tx) => tx.id === 't1')).toMatchObject({
+      categoryId: null,
+      updatedAt: '2026-11-23T10:00:00.000Z',
+    });
+    expect(transactions.find((tx) => tx.id === 't2')?.categoryId).toBe('rent');
+    expect((await listRecurringRules(db))[0]?.categoryId).toBeNull();
+    expect(await listBudgets(db)).toEqual([]);
+  });
+
+  it('reports a category that no longer exists', async () => {
+    expect(await deleteCategory(db, 'missing')).toEqual({ ok: false, error: 'notFound' });
   });
 });

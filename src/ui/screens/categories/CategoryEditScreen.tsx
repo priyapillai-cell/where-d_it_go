@@ -25,6 +25,7 @@ import { SegmentedControl } from '../../components/SegmentedControl';
 import { PALETTE } from '../../theme/theme';
 import { useTheme } from '../../theme/ThemeProvider';
 import { showAlert } from '../../dialogs';
+import { confirmDeleteCategory } from './confirmDeleteCategory';
 
 export function CategoryEditScreen() {
   const params = useLocalSearchParams<{ id?: string; type?: string }>();
@@ -113,13 +114,24 @@ export function CategoryEditScreen() {
         <FieldLabel>{t('categories.icon')}</FieldLabel>
         <IconPicker value={icon} color={color} onChange={setIcon} />
         {existing ? (
-          <Button
-            label={existing.isArchived ? t('common.unarchive') : t('common.archive')}
-            icon={existing.isArchived ? 'archive-arrow-up-outline' : 'archive-outline'}
-            variant="outline"
-            onPress={onArchive}
-            style={styles.archive}
-          />
+          <View style={styles.dangerZone}>
+            <Button
+              label={existing.isArchived ? t('common.unarchive') : t('common.archive')}
+              icon={existing.isArchived ? 'archive-arrow-up-outline' : 'archive-outline'}
+              variant="outline"
+              onPress={onArchive}
+            />
+            <Button
+              label={t('common.delete')}
+              icon="delete-outline"
+              variant="danger"
+              onPress={() => {
+                confirmDeleteCategory(existing, () => router.back()).catch((e: unknown) =>
+                  logger.error('Deleting category failed', e),
+                );
+              }}
+            />
+          </View>
         ) : null}
       </ScrollView>
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
@@ -139,6 +151,6 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { padding: 16, gap: 12, paddingBottom: 32 },
   preview: { alignItems: 'center', gap: 6, paddingVertical: 4 },
-  archive: { marginTop: 16 },
+  dangerZone: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 16 },
   footer: { paddingHorizontal: 16, paddingTop: 8 },
 });

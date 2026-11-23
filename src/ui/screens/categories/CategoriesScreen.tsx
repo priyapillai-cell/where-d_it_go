@@ -16,6 +16,7 @@ import { Card, SectionTitle } from '../../components/FormField';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { EmptyState } from '../../components/States';
 import { useTheme } from '../../theme/ThemeProvider';
+import { confirmDeleteCategory } from './confirmDeleteCategory';
 
 function CategoryRow({ category, trailing }: { category: Category; trailing: ReactNode }) {
   const { colors } = useTheme();
@@ -66,6 +67,19 @@ export function CategoriesScreen() {
   const run = (work: Parameters<typeof write>[0]) => {
     write(work).catch((e: unknown) => logger.error('Category update failed', e));
   };
+  const remove = (category: Category) => {
+    confirmDeleteCategory(category).catch((e: unknown) =>
+      logger.error('Deleting category failed', e),
+    );
+  };
+  const deleteButton = (category: Category) => (
+    <IconButton
+      icon="delete-outline"
+      size={20}
+      label={`${t('common.delete')}: ${category.name}`}
+      onPress={() => remove(category)}
+    />
+  );
 
   return (
     <ScrollView
@@ -106,6 +120,7 @@ export function CategoriesScreen() {
                     disabled={index === active.length - 1}
                     onPress={() => run((db) => moveCategory(db, category.id, 1))}
                   />
+                  {deleteButton(category)}
                 </>
               }
             />
@@ -129,11 +144,14 @@ export function CategoriesScreen() {
                 key={category.id}
                 category={category}
                 trailing={
-                  <IconButton
-                    icon="archive-arrow-up-outline"
-                    label={`${t('common.unarchive')}: ${category.name}`}
-                    onPress={() => run((db) => setCategoryArchived(db, category.id, false))}
-                  />
+                  <>
+                    <IconButton
+                      icon="archive-arrow-up-outline"
+                      label={`${t('common.unarchive')}: ${category.name}`}
+                      onPress={() => run((db) => setCategoryArchived(db, category.id, false))}
+                    />
+                    {deleteButton(category)}
+                  </>
                 }
               />
             ))}
