@@ -78,43 +78,62 @@ it('rejects fund entries that point at a missing fund', () => {
   if (!parsed.ok) expect(parsed.error.kind).toBe('integrity');
 });
 
-it('reads funds saved before monthly carryover existed', () => {
+it('reads fund entries saved before they could come from an account', () => {
   const backup = createBackup(sampleData());
-  const {
-    autoMode: _m,
-    autoAccountId: _a,
-    autoLastMonth: _l,
-    ...oldFund
-  } = backup.data.sinkingFunds[0]!;
   const { accountId: _e, ...oldEntry } = backup.data.fundEntries[0]!;
   const parsed = parseBackup(
-    JSON.stringify({
-      ...backup,
-      data: { ...backup.data, sinkingFunds: [oldFund], fundEntries: [oldEntry] },
-    }),
-  );
-  expect(parsed.ok && parsed.value.data.sinkingFunds[0]).toEqual(
-    expect.objectContaining({ autoMode: null, autoAccountId: null, autoLastMonth: null }),
+    JSON.stringify({ ...backup, data: { ...backup.data, fundEntries: [oldEntry] } }),
   );
   expect(parsed.ok && parsed.value.data.fundEntries[0]?.accountId).toBeNull();
 });
 
-it('round-trips carryover settings and rejects unknown carryover accounts', () => {
-  const data = sampleData();
-  const withCarryover: BackupData = {
-    ...data,
-    sinkingFunds: [
-      makeFund({ id: 'f1', autoMode: 'leftover', autoAccountId: 'a1', autoLastMonth: '2026-11' }),
-    ],
-    fundEntries: [makeFundEntry({ id: 'e1', fundId: 'f1', accountId: 'a1' })],
-  };
-  const backup = createBackup(withCarryover, new Date('2026-11-21T00:00:00.000Z'));
-  expect(parseBackup(JSON.stringify(backup))).toEqual({ ok: true, value: backup });
+it('fills in sinking fund settings missing from older backups', () => {
+  const backup = createBackup(sampleData());
+  const {
+    fundBudget: _b,
+    budgetLeftover: _l,
+    fundLeftover: _f,
+    showFundsOnOverview: _s,
+    ...oldSettings
+  } = backup.data.settings;
+  const parsed = parseBackup(
+    JSON.stringify({ ...backup, data: { ...backup.data, settings: oldSettings } }),
+  );
+  expect(parsed.ok && parsed.value.data.settings).toEqual(
+    expect.objectContaining({
+      fundBudget: null,
+      budgetLeftover: 'none',
+      fundLeftover: 'keep',
+      showFundsOnOverview: false,
+    }),
+  );
+});
 
-  const dangling = createBackup({
-    ...withCarryover,
-    sinkingFunds: [makeFund({ id: 'f1', autoMode: 'fixed', autoAccountId: 'gone' })],
+it('round-trips sinking fund budget and leftover settings', () => {
+  const data: BackupData = {
+    ...sampleData(),
+    fundEntries: [makeFundEntry({ id: 'e1', fundId: 'f1', accountId: 'a1' })],
+    settings: {
+      ...DEFAULT_SETTINGS,
+      fundBudget: 20000,
+      budgetLeftover: 'sinkingFund',
+      budgetLeftoverFundId: 'f1',
+      budgetLeftoverAccountId: 'a1',
+      budgetLeftoverSince: '2026-11',
+      budgetLeftoverLastMonth: '2026-11',
+      fundLeftover: 'nextMonth',
+      fundLeftoverSince: '2026-10',
+      showFundsOnOverview: true,
+    },
+  };
+  const backup = createBackup(data, new Date('2026-11-21T00:00:00.000Z'));
+  expect(parseBackup(JSON.stringify(backup))).toEqual({ ok: true, value: backup });
+});
+
+it('rejects a malformed leftover month', () => {
+  const backup = createBackup({
+    ...sampleData(),
+    settings: { ...DEFAULT_SETTINGS, budgetLeftoverSince: 'November' },
   });
-  const parsed = parseBackup(JSON.stringify(dangling));
-  expect(!parsed.ok && parsed.error.kind).toBe('integrity');
+  expect(parseBackup(JSON.stringify(backup)).ok).toBe(false);
 });

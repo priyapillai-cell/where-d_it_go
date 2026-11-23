@@ -1,6 +1,8 @@
 import { listFunds } from '@/db/repositories/fundRepository';
 import type { SqlDatabase } from '@/db/sqlDatabase';
 import { parseBackup } from '@/domain/backup';
+import { periodContaining } from '@/domain/periods';
+import { DEFAULT_SETTINGS } from '@/domain/types';
 import { createTestDatabase } from '@/test/nodeDatabase';
 
 import { exportBackupJson, restoreBackup } from '../dataService';
@@ -9,6 +11,7 @@ import {
   deleteFundEntry,
   type FundInput,
   loadFundDetail,
+  loadFundsDashboard,
   loadFundsOverview,
   moveFund,
   restoreFundEntry,
@@ -168,4 +171,38 @@ it('keeps funds through a JSON backup and restore', async () => {
   } finally {
     await other.close();
   }
+});
+
+it('loads the sinking fund dashboard for a period in the default currency', async () => {
+  const fund = await createFund();
+  const other = await createFund({ ...vacation, name: 'Euro trip', currency: 'EUR' });
+  await saveFundEntry(db, fund.id, {
+    type: 'deposit',
+    amount: 50000,
+    note: '',
+    date: NOW.toISOString(),
+  });
+  await saveFundEntry(db, fund.id, {
+    type: 'spend',
+    amount: 12000,
+    note: '',
+    date: NOW.toISOString(),
+  });
+  await saveFundEntry(db, other.id, {
+    type: 'spend',
+    amount: 700,
+    note: '',
+    date: NOW.toISOString(),
+  });
+  const period = periodContaining('month', NOW, { firstDayOfWeek: 1, firstDayOfMonth: 1 });
+  const settings = { ...DEFAULT_SETTINGS, defaultCurrency: 'INR', fundBudget: 20000 };
+
+  const dashboard = await loadFundsDashboard(db, period, settings, NOW);
+  expect(dashboard.spentInPeriod.get(fund.id)).toBe(12000);
+  expect(dashboard.addedInPeriod.get(fund.id)).toBe(50000);
+  expect(dashboard.budget?.progress).toMatchObject({ limit: 20000, spent: 12000 });
+  expect(dashboard.history.at(-1)).toMatchObject({ added: 50000, spent: 12000, balance: 38000 });
+
+  const noBudget = await loadFundsDashboard(db, period, { ...settings, fundBudget: null }, NOW);
+  expect(noBudget.budget).toBeNull();
 });

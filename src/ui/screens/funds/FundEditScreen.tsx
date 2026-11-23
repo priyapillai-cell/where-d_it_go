@@ -1,4 +1,3 @@
-import { addMonths, startOfMonth } from 'date-fns';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -8,7 +7,7 @@ import { getDatabase } from '@/db/database';
 import { getFund } from '@/db/repositories/fundRepository';
 import { parseAmount, toMajorString } from '@/domain/money';
 import { parseCalendarDay, toCalendarDay } from '@/domain/sinkingFunds';
-import type { FundAutoMode, SinkingFund } from '@/domain/types';
+import type { SinkingFund } from '@/domain/types';
 import { MAX_NAME_LENGTH } from '@/domain/validation';
 import { t } from '@/i18n';
 import { formatDate } from '@/i18n/format';
@@ -36,21 +35,7 @@ import { PALETTE } from '../../theme/theme';
 import { useTheme } from '../../theme/ThemeProvider';
 import { showAlert } from '../../dialogs';
 import { currencyLabel, currencyOptions } from '../../currencyOptions';
-
-type Preset = 'gifts' | 'vacation';
-
-const PRESETS: Record<Preset, { name: () => string; icon: string; color: string }> = {
-  gifts: {
-    name: () => t('funds.suggestGifts'),
-    icon: 'gift-outline',
-    color: PALETTE[1] ?? '#D81B60',
-  },
-  vacation: {
-    name: () => t('funds.suggestVacation'),
-    icon: 'beach',
-    color: PALETTE[5] ?? '#1E88E5',
-  },
-};
+import { findPreset, presetName } from './fundPresets';
 
 type Errors = FundFieldErrors & {
   targetText?: 'invalidNumber';
@@ -68,8 +53,8 @@ export function FundEditScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const defaultCurrency = useAppStore((s) => s.settings.defaultCurrency);
-  const preset =
-    params.preset === 'gifts' || params.preset === 'vacation' ? PRESETS[params.preset] : null;
+  const found = findPreset(params.preset);
+  const preset = found ? { ...found, name: () => presetName(found.id) } : null;
 
   const [existing, setExisting] = useState<SinkingFund | null>(null);
   const [name, setName] = useState(preset?.name() ?? '');
@@ -79,11 +64,8 @@ export function FundEditScreen() {
   const [monthlyText, setMonthlyText] = useState('');
   const [color, setColor] = useState(preset?.color ?? PALETTE[5] ?? '#1E88E5');
   const [icon, setIcon] = useState(preset?.icon ?? 'piggy-bank');
-  const [autoMode, setAutoMode] = useState<FundAutoMode | null>(null);
-  const [autoAccountId, setAutoAccountId] = useState<string | null>(null);
-  const accounts = useAppStore((s) => s.accounts);
   const [errors, setErrors] = useState<Errors>({});
-  const [sheet, setSheet] = useState<'none' | 'currency' | 'date' | 'account'>('none');
+  const [sheet, setSheet] = useState<'none' | 'currency' | 'date'>('none');
   const [saving, setSaving] = useState(false);
   const [today] = useState(() => new Date());
 
@@ -104,8 +86,6 @@ export function FundEditScreen() {
         );
         setColor(fund.color);
         setIcon(fund.icon);
-        setAutoMode(fund.autoMode);
-        setAutoAccountId(fund.autoAccountId);
       })
       .catch((e: unknown) => logger.error('Failed to load fund', e));
     return () => {
@@ -114,22 +94,6 @@ export function FundEditScreen() {
   }, [params.id]);
 
   const targetDay = targetDate ? parseCalendarDay(targetDate) : null;
-  const carryAccounts = accounts.filter((a) => !a.isArchived && a.currency === currency);
-  const autoAccount = accounts.find((a) => a.id === autoAccountId) ?? null;
-  const keepsSchedule =
-    !!existing &&
-    existing.autoMode !== null &&
-    existing.autoAccountId === autoAccountId &&
-    autoMode !== null;
-  const firstCarryover = keepsSchedule
-    ? null
-    : formatDate(startOfMonth(addMonths(today, 1)), 'long');
-
-  const chooseAutoMode = (mode: FundAutoMode | null) => {
-    setAutoMode(mode);
-    setErrors((e) => ({ ...e, autoAccount: undefined, monthlyContribution: undefined }));
-    if (mode && !autoAccountId) setAutoAccountId(carryAccounts[0]?.id ?? null);
-  };
 
   const onSave = async () => {
     const targetAmount = optionalAmount(targetText, currency);
@@ -146,17 +110,7 @@ export function FundEditScreen() {
       const result = await write((db) =>
         saveFund(
           db,
-          {
-            name,
-            icon,
-            color,
-            currency,
-            targetAmount,
-            targetDate,
-            monthlyContribution,
-            autoMode,
-            autoAccountId,
-          },
+          { name, icon, color, currency, targetAmount, targetDate, monthlyContribution },
           existing?.id,
         ),
       );
@@ -293,63 +247,8 @@ export function FundEditScreen() {
           }}
           keyboardType="decimal-pad"
           placeholder="0"
-          error={
-            errors.monthlyText ??
-            (errors.monthlyContribution === 'required' ? undefined : errors.monthlyContribution)
-          }
+          error={errors.monthlyText ?? errors.monthlyContribution}
         />
-        {errors.monthlyContribution === 'required' ? (
-          <AppText variant="caption" color="danger" accessibilityRole="alert">
-            {t('funds.carryoverNeedsMonthly')}
-          </AppText>
-        ) : null}
-
-        <View style={styles.field}>
-          <FieldLabel>{t('funds.carryover')}</FieldLabel>
-          <View style={styles.wrap}>
-            <Chip
-              label={t('funds.carryoverOff')}
-              selected={autoMode === null}
-              onPress={() => chooseAutoMode(null)}
-            />
-            <Chip
-              label={t('funds.carryoverFixed')}
-              selected={autoMode === 'fixed'}
-              onPress={() => chooseAutoMode('fixed')}
-            />
-            <Chip
-              label={t('funds.carryoverLeftover')}
-              selected={autoMode === 'leftover'}
-              onPress={() => chooseAutoMode('leftover')}
-            />
-          </View>
-          {autoMode ? (
-            <>
-              <FieldLabel>{t('funds.carryoverFrom')}</FieldLabel>
-              <View style={styles.wrap}>
-                <Chip
-                  label={autoAccount?.name ?? t('funds.carryoverHintNoAccount')}
-                  icon="wallet-outline"
-                  trailingIcon="chevron-down"
-                  accessibilityLabel={`${t('funds.carryoverFrom')}: ${autoAccount?.name ?? ''}`}
-                  onPress={() => setSheet('account')}
-                />
-              </View>
-              <FieldError code={errors.autoAccount} />
-              <AppText variant="caption" color="textSecondary">
-                {autoAccount
-                  ? t(
-                      autoMode === 'fixed'
-                        ? 'funds.carryoverHintFixed'
-                        : 'funds.carryoverHintLeftover',
-                      { account: autoAccount.name },
-                    )
-                  : t('funds.carryoverHintNoAccount')}
-                {firstCarryover ? ` ${t('funds.carryoverStarts', { date: firstCarryover })}` : ''}
-              </AppText>
-            </>
-          ) : null}
-        </View>
 
         <FieldLabel>{t('funds.color')}</FieldLabel>
         <ColorPicker value={color} onChange={setColor} />
@@ -390,18 +289,7 @@ export function FundEditScreen() {
         selected={currency}
         onSelect={(code) => {
           setCurrency(code);
-          setErrors((e) => ({ ...e, currency: undefined, autoAccount: undefined }));
-        }}
-        onClose={() => setSheet('none')}
-      />
-      <SelectSheet
-        visible={sheet === 'account'}
-        title={t('funds.carryoverFrom')}
-        options={carryAccounts.map((a) => ({ value: a.id, label: a.name }))}
-        selected={autoAccountId ?? ''}
-        onSelect={(accountId) => {
-          setAutoAccountId(accountId);
-          setErrors((e) => ({ ...e, autoAccount: undefined }));
+          setErrors((e) => ({ ...e, currency: undefined }));
         }}
         onClose={() => setSheet('none')}
       />

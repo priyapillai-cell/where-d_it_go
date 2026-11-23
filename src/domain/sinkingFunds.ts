@@ -1,4 +1,6 @@
-import type { FundEntry, MinorUnits, SinkingFund } from './types';
+import { addMonths, startOfMonth } from 'date-fns';
+
+import type { FundEntry, FundEntryType, MinorUnits, SinkingFund } from './types';
 
 export type FundStatus = 'noTarget' | 'reached' | 'inProgress' | 'onTrack' | 'behind' | 'overdue';
 
@@ -137,4 +139,65 @@ export function fundTotalsByCurrency(
   return [...totals.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([currency, balance]) => ({ currency, balance }));
+}
+
+export interface FundMonth {
+  start: Date;
+  added: MinorUnits;
+  spent: MinorUnits;
+  /** Balance at the end of the month, counting everything before it. */
+  balance: MinorUnits;
+}
+
+/** The last `months` calendar months of the given entries, oldest first, for charts. */
+export function fundMonthlyHistory(
+  entries: readonly Pick<FundEntry, 'type' | 'amount' | 'date'>[],
+  now: Date,
+  months = 6,
+): FundMonth[] {
+  const first = addMonths(startOfMonth(now), -(months - 1));
+  const history: FundMonth[] = Array.from({ length: months }, (_, i) => ({
+    start: addMonths(first, i),
+    added: 0,
+    spent: 0,
+    balance: 0,
+  }));
+  let opening = 0;
+  for (const entry of entries) {
+    const date = new Date(entry.date);
+    const signed = entry.type === 'deposit' ? entry.amount : -entry.amount;
+    if (date < first) {
+      opening += signed;
+      continue;
+    }
+    const index =
+      (date.getFullYear() - first.getFullYear()) * 12 + date.getMonth() - first.getMonth();
+    const month = history[index];
+    if (!month) continue;
+    if (entry.type === 'deposit') month.added += entry.amount;
+    else month.spent += entry.amount;
+  }
+  let running = opening;
+  for (const month of history) {
+    running += month.added - month.spent;
+    month.balance = running;
+  }
+  return history;
+}
+
+/** Totals of one entry type per fund within a date range (`from <= date < to`). */
+export function totalsByFund(
+  entries: readonly Pick<FundEntry, 'fundId' | 'type' | 'amount' | 'date'>[],
+  type: FundEntryType,
+  from: Date,
+  to: Date,
+): Map<string, MinorUnits> {
+  const totals = new Map<string, MinorUnits>();
+  for (const entry of entries) {
+    if (entry.type !== type) continue;
+    const date = new Date(entry.date);
+    if (date < from || date >= to) continue;
+    totals.set(entry.fundId, (totals.get(entry.fundId) ?? 0) + entry.amount);
+  }
+  return totals;
 }

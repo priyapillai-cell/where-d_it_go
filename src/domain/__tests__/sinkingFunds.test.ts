@@ -1,11 +1,13 @@
 import { makeFundEntry } from '@/test/factories';
 
 import {
+  fundMonthlyHistory,
   fundTotalsByCurrency,
   monthsUntil,
   parseCalendarDay,
   summarizeFund,
   toCalendarDay,
+  totalsByFund,
 } from '../sinkingFunds';
 import { validateFundDraft, validateFundEntryDraft } from '../validation';
 
@@ -150,5 +152,64 @@ describe('fund validation', () => {
       note: undefined,
       date: 'invalidDate',
     });
+  });
+});
+
+describe('fundMonthlyHistory', () => {
+  const at = (month: number, date = 10) => new Date(2026, month, date, 12).toISOString();
+
+  it('lists the last six calendar months, oldest first', () => {
+    const history = fundMonthlyHistory([], NOW);
+    expect(history.map((m) => m.start)).toEqual([
+      new Date(2026, 5, 1),
+      new Date(2026, 6, 1),
+      new Date(2026, 7, 1),
+      new Date(2026, 8, 1),
+      new Date(2026, 9, 1),
+      new Date(2026, 10, 1),
+    ]);
+    expect(history.every((m) => m.added === 0 && m.spent === 0 && m.balance === 0)).toBe(true);
+  });
+
+  it('adds and spends per month with a running balance that includes older entries', () => {
+    const history = fundMonthlyHistory(
+      [
+        makeFundEntry({ type: 'deposit', amount: 5000, date: at(0) }),
+        makeFundEntry({ type: 'deposit', amount: 2000, date: at(9) }),
+        makeFundEntry({ type: 'spend', amount: 1500, date: at(9, 20) }),
+        makeFundEntry({ type: 'deposit', amount: 1000, date: at(10) }),
+      ],
+      NOW,
+      3,
+    );
+    expect(history.map(({ added, spent, balance }) => ({ added, spent, balance }))).toEqual([
+      { added: 0, spent: 0, balance: 5000 },
+      { added: 2000, spent: 1500, balance: 5500 },
+      { added: 1000, spent: 0, balance: 6500 },
+    ]);
+  });
+});
+
+describe('totalsByFund', () => {
+  it('sums one entry type per fund inside the range', () => {
+    const entries = [
+      makeFundEntry({ fundId: 'a', type: 'spend', amount: 300, date: '2026-11-05T12:00:00.000Z' }),
+      makeFundEntry({ fundId: 'a', type: 'spend', amount: 200, date: '2026-11-06T12:00:00.000Z' }),
+      makeFundEntry({ fundId: 'b', type: 'spend', amount: 50, date: '2026-11-07T12:00:00.000Z' }),
+      makeFundEntry({
+        fundId: 'a',
+        type: 'deposit',
+        amount: 900,
+        date: '2026-11-07T12:00:00.000Z',
+      }),
+      makeFundEntry({ fundId: 'a', type: 'spend', amount: 999, date: '2026-12-01T00:00:00.000Z' }),
+    ];
+    const totals = totalsByFund(
+      entries,
+      'spend',
+      new Date('2026-11-01T00:00:00.000Z'),
+      new Date('2026-12-01T00:00:00.000Z'),
+    );
+    expect(Object.fromEntries(totals)).toEqual({ a: 500, b: 50 });
   });
 });

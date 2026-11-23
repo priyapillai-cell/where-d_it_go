@@ -94,6 +94,7 @@ export const budgetSchema = z.object({
 }) satisfies z.ZodType<Budget>;
 
 const calendarDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const monthKey = z.string().regex(/^\d{4}-\d{2}$/);
 
 export const sinkingFundSchema = z.object({
   id,
@@ -104,13 +105,6 @@ export const sinkingFundSchema = z.object({
   targetAmount: positiveMinor.nullable(),
   targetDate: calendarDay.nullable(),
   monthlyContribution: positiveMinor.nullable(),
-  autoMode: z.enum(['fixed', 'leftover']).nullable().default(null),
-  autoAccountId: id.nullable().default(null),
-  autoLastMonth: z
-    .string()
-    .regex(/^\d{4}-\d{2}$/)
-    .nullable()
-    .default(null),
   isArchived: z.boolean(),
   sortOrder: z.number().int(),
   createdAt: isoDate,
@@ -136,6 +130,15 @@ export const settingsSchema = z.object({
   passcodeEnabled: z.boolean(),
   biometricsEnabled: z.boolean(),
   language: z.enum(['system', 'en']),
+  fundBudget: positiveMinor.nullable().default(null),
+  budgetLeftover: z.enum(['none', 'nextMonth', 'sinkingFund']).default('none'),
+  budgetLeftoverFundId: id.nullable().default(null),
+  budgetLeftoverAccountId: id.nullable().default(null),
+  budgetLeftoverSince: monthKey.nullable().default(null),
+  budgetLeftoverLastMonth: monthKey.nullable().default(null),
+  fundLeftover: z.enum(['keep', 'nextMonth']).default('keep'),
+  fundLeftoverSince: monthKey.nullable().default(null),
+  showFundsOnOverview: z.boolean().default(false),
 }) satisfies z.ZodType<Settings>;
 
 export const backupSchema = z.object({
@@ -225,10 +228,6 @@ function checkIntegrity(data: BackupData): string[] {
   data.budgets.forEach((b) => {
     if (b.categoryId !== null && !categoryIds.has(b.categoryId))
       issues.push(`Budget ${b.id}: unknown category`);
-  });
-  data.sinkingFunds.forEach((f) => {
-    if (f.autoAccountId !== null && !accountIds.has(f.autoAccountId))
-      issues.push(`Sinking fund ${f.id}: unknown carryover account`);
   });
   const fundIds = new Set(data.sinkingFunds.map((f) => f.id));
   data.fundEntries.forEach((e) => {

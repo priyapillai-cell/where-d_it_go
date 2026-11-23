@@ -18,15 +18,12 @@ export async function getFund(db: SqlExecutor, id: string): Promise<SinkingFund 
 export async function upsertFund(db: SqlExecutor, f: SinkingFund): Promise<void> {
   await db.run(
     `INSERT INTO sinking_funds (id, name, icon, color, currency, target_amount, target_date,
-       monthly_contribution, auto_mode, auto_account_id, auto_last_month, is_archived,
-       sort_order, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       monthly_contribution, is_archived, sort_order, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET name = excluded.name, icon = excluded.icon,
        color = excluded.color, currency = excluded.currency,
        target_amount = excluded.target_amount, target_date = excluded.target_date,
-       monthly_contribution = excluded.monthly_contribution, auto_mode = excluded.auto_mode,
-       auto_account_id = excluded.auto_account_id, auto_last_month = excluded.auto_last_month,
-       is_archived = excluded.is_archived,
+       monthly_contribution = excluded.monthly_contribution, is_archived = excluded.is_archived,
        sort_order = excluded.sort_order`,
     [
       f.id,
@@ -37,9 +34,6 @@ export async function upsertFund(db: SqlExecutor, f: SinkingFund): Promise<void>
       f.targetAmount,
       f.targetDate,
       f.monthlyContribution,
-      f.autoMode,
-      f.autoAccountId,
-      f.autoLastMonth,
       bool(f.isArchived),
       f.sortOrder,
       f.createdAt,
@@ -140,17 +134,18 @@ export async function insertFundEntryIfAbsent(db: SqlExecutor, e: FundEntry): Pr
   return result.changes > 0;
 }
 
-/** Automatic carryover deposits taken from an account with `fromIso <= date < toIso`. */
-export async function carryoverTakenFromAccount(
+/** Spending from funds in `currency` with `fromIso <= date < toIso`. */
+export async function fundSpendTotal(
   db: SqlExecutor,
-  accountId: string,
+  currency: string,
   fromIso: string,
   toIso: string,
 ): Promise<number> {
   const row = await db.first<{ total: number | null }>(
-    `SELECT SUM(amount) AS total FROM fund_entries
-     WHERE account_id = ? AND type = 'deposit' AND id LIKE 'carry-%' AND date >= ? AND date < ?`,
-    [accountId, fromIso, toIso],
+    `SELECT SUM(e.amount) AS total FROM fund_entries e
+     JOIN sinking_funds f ON f.id = e.fund_id
+     WHERE e.type = 'spend' AND f.currency = ? AND e.date >= ? AND e.date < ?`,
+    [currency, fromIso, toIso],
   );
   return row?.total ?? 0;
 }

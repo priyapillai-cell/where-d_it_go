@@ -4,7 +4,6 @@ import type {
   Category,
   CategoryType,
   Frequency,
-  FundAutoMode,
   FundEntry,
   FundEntryType,
   RecurringRule,
@@ -154,9 +153,6 @@ export interface SinkingFundRow {
   target_amount: number | null;
   target_date: string | null;
   monthly_contribution: number | null;
-  auto_mode: FundAutoMode | null;
-  auto_account_id: string | null;
-  auto_last_month: string | null;
   is_archived: number;
   sort_order: number;
   created_at: string;
@@ -183,9 +179,6 @@ export const toSinkingFund = (r: SinkingFundRow): SinkingFund => ({
   targetAmount: r.target_amount,
   targetDate: r.target_date,
   monthlyContribution: r.monthly_contribution,
-  autoMode: r.auto_mode,
-  autoAccountId: r.auto_account_id,
-  autoLastMonth: r.auto_last_month,
   isArchived: r.is_archived === 1,
   sortOrder: r.sort_order,
   createdAt: r.created_at,

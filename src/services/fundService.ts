@@ -1,4 +1,3 @@
-import { getAccount } from '@/db/repositories/accountRepository';
 import {
   countFundEntries,
   deleteFund as deleteFundRow,
@@ -14,17 +13,24 @@ import {
   upsertFundEntry,
 } from '@/db/repositories/fundRepository';
 import type { SqlDatabase } from '@/db/sqlDatabase';
-import { monthKey } from '@/domain/carryover';
 import { moveInList } from '@/domain/ordering';
-import { type FundSummary, fundTotalsByCurrency, summarizeFund } from '@/domain/sinkingFunds';
+import type { Period } from '@/domain/periods';
+import {
+  type FundMonth,
+  fundMonthlyHistory,
+  type FundSummary,
+  fundTotalsByCurrency,
+  summarizeFund,
+  totalsByFund,
+} from '@/domain/sinkingFunds';
 import {
   err,
-  type FundAutoMode,
   type FundEntry,
   type FundEntryType,
   type MinorUnits,
   ok,
   type Result,
+  type Settings,
   type SinkingFund,
 } from '@/domain/types';
 import {
@@ -35,6 +41,8 @@ import {
 } from '@/domain/validation';
 import { newId } from '@/utils/id';
 
+import { loadFundMonthBudget, type MonthBudgetState } from './leftoverService';
+
 export interface FundInput {
   name: string;
   icon: string;
@@ -43,12 +51,10 @@ export interface FundInput {
   targetAmount: MinorUnits | null;
   targetDate: string | null;
   monthlyContribution: MinorUnits | null;
-  autoMode?: FundAutoMode | null;
-  autoAccountId?: string | null;
 }
 
 export type FundFieldErrors = FieldErrors<
-  'name' | 'currency' | 'targetAmount' | 'targetDate' | 'monthlyContribution' | 'autoAccount'
+  'name' | 'currency' | 'targetAmount' | 'targetDate' | 'monthlyContribution'
 >;
 
 export async function saveFund(
@@ -57,13 +63,7 @@ export async function saveFund(
   existingId?: string,
   now: Date = new Date(),
 ): Promise<Result<SinkingFund, FundFieldErrors>> {
-  const autoMode = input.autoMode ?? null;
-  const draft = {
-    ...input,
-    name: input.name.trim(),
-    autoMode,
-    autoAccountId: autoMode ? (input.autoAccountId ?? null) : null,
-  };
+  const draft = { ...input, name: input.name.trim() };
   const errors: FundFieldErrors = validateFundDraft(draft);
   if (hasErrors(errors)) return err(errors);
 
@@ -76,16 +76,6 @@ export async function saveFund(
     ) {
       return err<FundFieldErrors>({ currency: 'currencyLocked' });
     }
-    if (draft.autoAccountId) {
-      const account = await getAccount(tx, draft.autoAccountId);
-      if (!account || account.isArchived) return err<FundFieldErrors>({ autoAccount: 'required' });
-      if (account.currency !== draft.currency) {
-        return err<FundFieldErrors>({ autoAccount: 'currencyMismatch' });
-      }
-    }
-    // Turning carryover on (or pointing it at another account) starts with the next 1st.
-    const keepsSchedule =
-      !!existing && existing.autoMode !== null && existing.autoAccountId === draft.autoAccountId;
     const fund: SinkingFund = {
       id: existing?.id ?? newId(),
       name: draft.name,
@@ -95,13 +85,6 @@ export async function saveFund(
       targetAmount: draft.targetAmount,
       targetDate: draft.targetDate,
       monthlyContribution: draft.monthlyContribution,
-      autoMode: draft.autoMode,
-      autoAccountId: draft.autoAccountId,
-      autoLastMonth: draft.autoMode
-        ? keepsSchedule
-          ? existing.autoLastMonth
-          : monthKey(now)
-        : null,
       isArchived: existing?.isArchived ?? false,
       sortOrder: existing?.sortOrder ?? (await nextFundSortOrder(tx)),
       createdAt: existing?.createdAt ?? now.toISOString(),
@@ -205,14 +188,18 @@ export interface FundsOverview {
   totals: { currency: string; balance: MinorUnits }[];
 }
 
-export async function loadFundsOverview(db: SqlDatabase, now: Date): Promise<FundsOverview> {
-  const [funds, entries] = await Promise.all([listFunds(db), listAllFundEntries(db)]);
+function groupByFund(entries: readonly FundEntry[]): Map<string, FundEntry[]> {
   const byFund = new Map<string, FundEntry[]>();
   for (const entry of entries) {
     const list = byFund.get(entry.fundId) ?? [];
     list.push(entry);
     byFund.set(entry.fundId, list);
   }
+  return byFund;
+}
+
+function overviewOf(funds: SinkingFund[], entries: FundEntry[], now: Date): FundsOverview {
+  const byFund = groupByFund(entries);
   const items = funds.map((fund) => ({
     fund,
     summary: summarizeFund(fund, byFund.get(fund.id) ?? [], now),
@@ -225,8 +212,49 @@ export async function loadFundsOverview(db: SqlDatabase, now: Date): Promise<Fun
   };
 }
 
+export async function loadFundsOverview(db: SqlDatabase, now: Date): Promise<FundsOverview> {
+  const [funds, entries] = await Promise.all([listFunds(db), listAllFundEntries(db)]);
+  return overviewOf(funds, entries, now);
+}
+
+export interface FundsDashboard extends FundsOverview {
+  /** The default currency: the budget and charts cover categories in it. */
+  currency: string;
+  spentInPeriod: Map<string, MinorUnits>;
+  addedInPeriod: Map<string, MinorUnits>;
+  budget: MonthBudgetState | null;
+  /** All categories in `currency` combined, last six months. */
+  history: FundMonth[];
+}
+
+/** Everything the sinking fund screen and its overview card show. */
+export async function loadFundsDashboard(
+  db: SqlDatabase,
+  period: Period,
+  settings: Settings,
+  now: Date = new Date(),
+): Promise<FundsDashboard> {
+  const [funds, entries] = await Promise.all([listFunds(db), listAllFundEntries(db)]);
+  const currency = settings.defaultCurrency;
+  const inCurrency = new Set(funds.filter((f) => f.currency === currency).map((f) => f.id));
+  const from = period.start ?? new Date(0);
+  const to = period.end ?? new Date(8.64e15);
+  return {
+    ...overviewOf(funds, entries, now),
+    currency,
+    spentInPeriod: totalsByFund(entries, 'spend', from, to),
+    addedInPeriod: totalsByFund(entries, 'deposit', from, to),
+    budget: await loadFundMonthBudget(db, now, settings),
+    history: fundMonthlyHistory(
+      entries.filter((e) => inCurrency.has(e.fundId)),
+      now,
+    ),
+  };
+}
+
 export interface FundDetail extends FundOverviewItem {
   entries: FundEntry[];
+  history: FundMonth[];
 }
 
 export async function loadFundDetail(
@@ -237,5 +265,10 @@ export async function loadFundDetail(
   const fund = await getFund(db, id);
   if (!fund) return null;
   const entries = await listFundEntries(db, id);
-  return { fund, entries, summary: summarizeFund(fund, entries, now) };
+  return {
+    fund,
+    entries,
+    summary: summarizeFund(fund, entries, now),
+    history: fundMonthlyHistory(entries, now),
+  };
 }

@@ -93,13 +93,6 @@ export interface Budget {
  * Money set aside for an irregular, larger expense (gifts, vacations). Tracked separately from
  * daily accounts: fund entries never change account balances or the daily overview.
  */
-/**
- * Monthly carryover into a fund on the 1st: `fixed` moves the monthly plan amount, `leftover`
- * moves what the source account gained in the previous month (income minus spending).
- */
-export type FundAutoMode = 'fixed' | 'leftover';
-export const FUND_AUTO_MODES: readonly FundAutoMode[] = ['fixed', 'leftover'];
-
 export interface SinkingFund {
   id: string;
   name: string;
@@ -112,11 +105,6 @@ export interface SinkingFund {
   targetDate: string | null;
   /** Planned amount to set aside each month. */
   monthlyContribution: MinorUnits | null;
-  autoMode: FundAutoMode | null;
-  /** Account the monthly carryover is taken from. */
-  autoAccountId: string | null;
-  /** Last month (YYYY-MM) whose carryover was processed. */
-  autoLastMonth: string | null;
   isArchived: boolean;
   sortOrder: number;
   createdAt: IsoTimestamp;
@@ -139,6 +127,18 @@ export interface FundEntry {
   updatedAt: IsoTimestamp;
 }
 
+/** What happens to the unspent part of the main monthly budget when a month ends. */
+export type BudgetLeftoverMode = 'none' | 'nextMonth' | 'sinkingFund';
+export const BUDGET_LEFTOVER_MODES: readonly BudgetLeftoverMode[] = [
+  'none',
+  'nextMonth',
+  'sinkingFund',
+];
+
+/** What happens to the unspent part of the sinking fund budget when a month ends. */
+export type FundLeftoverMode = 'keep' | 'nextMonth';
+export const FUND_LEFTOVER_MODES: readonly FundLeftoverMode[] = ['keep', 'nextMonth'];
+
 export interface Settings {
   defaultCurrency: string;
   firstDayOfWeek: WeekStart;
@@ -149,6 +149,20 @@ export interface Settings {
   passcodeEnabled: boolean;
   biometricsEnabled: boolean;
   language: LanguagePreference;
+  /** Monthly budget for the whole sinking fund, in the default currency. */
+  fundBudget: MinorUnits | null;
+  budgetLeftover: BudgetLeftoverMode;
+  /** Sinking fund category that receives the main budget's leftover. */
+  budgetLeftoverFundId: string | null;
+  /** Account the leftover is taken from when it moves into the sinking fund. */
+  budgetLeftoverAccountId: string | null;
+  /** First budget month (YYYY-MM) whose leftover is handled; set when the mode is chosen. */
+  budgetLeftoverSince: string | null;
+  /** Last budget month whose leftover was moved into the sinking fund. */
+  budgetLeftoverLastMonth: string | null;
+  fundLeftover: FundLeftoverMode;
+  fundLeftoverSince: string | null;
+  showFundsOnOverview: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -159,6 +173,15 @@ export const DEFAULT_SETTINGS: Settings = {
   passcodeEnabled: false,
   biometricsEnabled: false,
   language: 'system',
+  fundBudget: null,
+  budgetLeftover: 'none',
+  budgetLeftoverFundId: null,
+  budgetLeftoverAccountId: null,
+  budgetLeftoverSince: null,
+  budgetLeftoverLastMonth: null,
+  fundLeftover: 'keep',
+  fundLeftoverSince: null,
+  showFundsOnOverview: false,
 };
 
 export type Result<T, E = string> = { ok: true; value: T } | { ok: false; error: E };
