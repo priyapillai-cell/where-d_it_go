@@ -153,7 +153,7 @@ export function HomeScreen() {
           onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
         />
         <View style={styles.flex}>
-          <Logo height={40} />
+          <Logo height={30} style={styles.logo} />
         </View>
         <IconButton
           icon="filter-variant"
@@ -355,6 +355,8 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, gap: 4 },
+  // Pulls the logo toward the menu icon, past the menu button's touch padding.
+  logo: { marginLeft: -8 },
   accountHeader: { flexDirection: 'row', paddingHorizontal: 16 },
   accountButton: { flex: 1, alignItems: 'center', minHeight: 48, justifyContent: 'center' },
   accountRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
