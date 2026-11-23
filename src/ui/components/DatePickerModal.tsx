@@ -1,13 +1,14 @@
-import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getFormattingLocale, t } from '@/i18n';
+import { t } from '@/i18n';
 
 import { useTheme } from '../theme/ThemeProvider';
 import { AppText } from './AppText';
 import { Button } from './Button';
+import { CalendarGrid } from './CalendarGrid';
 
 export interface DatePickerModalProps {
   visible: boolean;
@@ -31,7 +32,7 @@ function withTimeOf(date: Date, source: Date): Date {
   return next;
 }
 
-function IosSheet({
+function CalendarSheet({
   value,
   title,
   minimumDate,
@@ -39,7 +40,7 @@ function IosSheet({
   onConfirm,
   onCancel,
 }: Omit<DatePickerModalProps, 'visible'>) {
-  const { colors, radius, dark } = useTheme();
+  const { colors, radius } = useTheme();
   const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState(value);
   return (
@@ -65,16 +66,11 @@ function IosSheet({
             {title}
           </AppText>
         ) : null}
-        <DateTimePicker
+        <CalendarGrid
           value={draft}
-          mode="date"
-          display="inline"
-          locale={getFormattingLocale()}
-          themeVariant={dark ? 'dark' : 'light'}
-          accentColor={colors.primary}
           minimumDate={minimumDate}
           maximumDate={maximumDate}
-          onChange={(_, date) => date && setDraft(withTimeOf(date, value))}
+          onChange={(date) => setDraft(withTimeOf(date, value))}
         />
         <View style={styles.actions}>
           <Button
@@ -90,7 +86,7 @@ function IosSheet({
   );
 }
 
-/** Date selection: the native dialog on Android, an inline calendar in a sheet on iOS. */
+/** Date selection: the native dialog on Android, a calendar sheet on iOS and the web. */
 export function DatePickerModal(props: DatePickerModalProps) {
   const { visible, onCancel } = props;
   const latest = useRef(props);
@@ -117,14 +113,20 @@ export function DatePickerModal(props: DatePickerModalProps) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
-      {visible ? <IosSheet {...props} /> : null}
+      {visible ? <CalendarSheet {...props} /> : null}
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1 },
-  sheet: { paddingHorizontal: 16, paddingTop: 16 },
+  sheet: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
+  },
   title: { marginBottom: 8 },
   actions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   action: { flex: 1 },
