@@ -8,7 +8,7 @@ import {
   periodContaining,
   shiftPeriod,
 } from '@/domain/periods';
-import type { CategoryType } from '@/domain/types';
+import type { CategoryType, FundEntryType } from '@/domain/types';
 
 export const ALL_ACCOUNTS = 'all';
 
@@ -63,4 +63,15 @@ export const useReportsStore = create<ReportsState>((set) => ({
   ...periodSlice(set),
   accountId: ALL_ACCOUNTS,
   setAccountId: (accountId) => set({ accountId }),
+}));
+
+interface FundsState extends PeriodState {
+  entryType: FundEntryType;
+  toggleEntryType: () => void;
+}
+
+export const useFundsStore = create<FundsState>((set) => ({
+  ...periodSlice(set),
+  entryType: 'spend',
+  toggleEntryType: () => set((s) => ({ entryType: s.entryType === 'spend' ? 'deposit' : 'spend' })),
 }));

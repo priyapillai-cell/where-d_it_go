@@ -1,11 +1,12 @@
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useLayoutEffect } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import type { FundEntry, FundEntryType, SinkingFund } from '@/domain/types';
 import { t } from '@/i18n';
 import { formatDate, formatPercent, money } from '@/i18n/format';
 import { loadFundDetail } from '@/services/fundService';
+import { useAppStore } from '@/state/appStore';
 
 import { AppText } from '../../components/AppText';
 import { Button, IconButton } from '../../components/Button';
@@ -16,6 +17,7 @@ import { ProgressBar } from '../../components/ProgressBar';
 import { EmptyState, ListSkeleton } from '../../components/States';
 import { useDbQuery } from '../../hooks/useDbQuery';
 import { useTheme } from '../../theme/ThemeProvider';
+import { FundHistoryChart } from './FundHistoryChart';
 import { fundStatusPresentation } from './fundStatus';
 import { fundHint } from './FundsScreen';
 
@@ -25,8 +27,16 @@ function openEntry(fundId: string, type: FundEntryType, id?: string) {
 
 function EntryRow({ entry, fund }: { entry: FundEntry; fund: SinkingFund }) {
   const { colors } = useTheme();
+  const accounts = useAppStore((s) => s.accounts);
   const isDeposit = entry.type === 'deposit';
-  const label = isDeposit ? t('funds.entryDeposit') : t('funds.entrySpend');
+  const fromAccount = entry.accountId ? accounts.find((a) => a.id === entry.accountId) : null;
+  const label = fromAccount
+    ? t('funds.movedFrom', { account: fromAccount.name })
+    : entry.id.startsWith('leftover-')
+      ? t('funds.movedLeftover')
+      : isDeposit
+        ? t('funds.entryDeposit')
+        : t('funds.entrySpend');
   const amount = money(isDeposit ? entry.amount : -entry.amount, fund.currency, 'always');
   const date = formatDate(new Date(entry.date), 'medium');
   return (
@@ -77,6 +87,7 @@ export function FundDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors } = useTheme();
   const navigation = useNavigation();
+  const { width } = useWindowDimensions();
   const { data, loading } = useDbQuery(`fund|${id}`, (db) => loadFundDetail(db, id, new Date()));
   const fundName = data?.fund.name;
 
@@ -198,6 +209,20 @@ export function FundDetailScreen() {
           onPress={() => openEntry(fund.id, 'spend')}
         />
       </View>
+
+      {data.history.some((m) => m.added > 0 || m.spent > 0) ? (
+        <Card style={styles.summary}>
+          <AppText variant="subtitle" accessibilityRole="header">
+            {t('funds.chartTitle')}
+          </AppText>
+          <FundHistoryChart
+            history={data.history}
+            currency={currency}
+            width={Math.max(200, Math.min(width, 420) - 64)}
+            showBalance
+          />
+        </Card>
+      ) : null}
 
       <SectionTitle>{t('funds.entries')}</SectionTitle>
       {entries.length === 0 ? (

@@ -10,19 +10,21 @@ import { useTheme } from '../../theme/ThemeProvider';
 export const RING_ICON = 52;
 export const MAX_RING_ITEMS = 12;
 
-export interface RingItem {
-  category: Category;
+type RingCategory = Pick<Category, 'id' | 'name' | 'icon' | 'color'>;
+
+export interface RingItem<C extends RingCategory = Category> {
+  category: C;
   total: number;
 }
 
-function CategoryButton({
+function CategoryButton<C extends RingCategory>({
   item,
   currency,
   onPress,
 }: {
-  item: RingItem;
+  item: RingItem<C>;
   currency: string;
-  onPress: (c: Category) => void;
+  onPress: (c: C) => void;
 }) {
   const { colors } = useTheme();
   const spent = item.total > 0;
@@ -50,16 +52,16 @@ function CategoryButton({
 }
 
 /** Places category buttons evenly on a circle around the donut, starting at 12 o'clock. */
-export function CategoryRing({
+export function CategoryRing<C extends RingCategory>({
   items,
   size,
   currency,
   onPress,
 }: {
-  items: readonly RingItem[];
+  items: readonly RingItem<C>[];
   size: number;
   currency: string;
-  onPress: (c: Category) => void;
+  onPress: (c: C) => void;
 }) {
   const radius = size / 2 - RING_ICON / 2 - 2;
   return (
@@ -78,14 +80,14 @@ export function CategoryRing({
   );
 }
 
-export function CategoryGrid({
+export function CategoryGrid<C extends RingCategory>({
   items,
   currency,
   onPress,
 }: {
-  items: readonly RingItem[];
+  items: readonly RingItem<C>[];
   currency: string;
-  onPress: (c: Category) => void;
+  onPress: (c: C) => void;
 }) {
   return (
     <View style={styles.grid}>

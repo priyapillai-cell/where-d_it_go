@@ -4,7 +4,7 @@ import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { getDatabase } from '@/db/database';
-import { getFund, getFundEntry } from '@/db/repositories/fundRepository';
+import { getFund, getFundEntry, listFunds } from '@/db/repositories/fundRepository';
 import {
   applyKey,
   evaluateExpression,
@@ -23,19 +23,22 @@ import { logger } from '@/utils/logger';
 
 import { AppText } from '../../components/AppText';
 import { Button, IconButton } from '../../components/Button';
+import { CategoryIcon } from '../../components/CategoryIcon';
 import { Chip } from '../../components/Chip';
 import { DatePickerModal } from '../../components/DatePickerModal';
 import { Keypad } from '../../components/Keypad';
 import { ModalHeader } from '../../components/ModalHeader';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { EmptyState } from '../../components/States';
+import { useDbQuery } from '../../hooks/useDbQuery';
 import { useTheme } from '../../theme/ThemeProvider';
 
 export function FundEntryScreen() {
-  const params = useLocalSearchParams<{ fundId: string; type?: string; id?: string }>();
+  const params = useLocalSearchParams<{ fundId?: string; type?: string; id?: string }>();
   const { colors, radius } = useTheme();
   const insets = useSafeAreaInsets();
 
+  const funds = useDbQuery('fund-entry-funds', (db) => listFunds(db, false)).data ?? [];
   const [fund, setFund] = useState<SinkingFund | null>(null);
   const [missing, setMissing] = useState(false);
   const [existing, setExisting] = useState<FundEntry | null>(null);
@@ -51,6 +54,7 @@ export function FundEntryScreen() {
     let cancelled = false;
     (async () => {
       const db = await getDatabase();
+      if (!params.fundId) return;
       const loaded = await getFund(db, params.fundId);
       if (cancelled) return;
       if (!loaded) {
@@ -84,7 +88,7 @@ export function FundEntryScreen() {
   };
 
   const onSave = async () => {
-    if (!fund) return;
+    if (!fund) return setError(t('funds.needCategory'));
     if (amount <= 0) return setError(t('editor.enterAmount'));
     setSaving(true);
     try {
@@ -146,9 +150,13 @@ export function FundEntryScreen() {
 
   const title = existing
     ? t('funds.editEntry')
-    : type === 'deposit'
-      ? t('funds.newDeposit', { name: fund?.name ?? '' })
-      : t('funds.newSpend', { name: fund?.name ?? '' });
+    : !fund
+      ? type === 'deposit'
+        ? t('funds.newDepositNoCategory')
+        : t('funds.newSpendNoCategory')
+      : type === 'deposit'
+        ? t('funds.newDeposit', { name: fund.name })
+        : t('funds.newSpend', { name: fund.name });
 
   return (
     <View
@@ -222,6 +230,35 @@ export function FundEntryScreen() {
           </AppText>
         ) : null}
 
+        {!existing ? (
+          <View style={styles.categories} accessibilityLabel={t('funds.chooseCategory')}>
+            <AppText variant="label" color="textSecondary">
+              {t('funds.chooseCategory')}
+            </AppText>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.chips}>
+                {funds.map((f) => (
+                  <Chip
+                    key={f.id}
+                    label={f.name}
+                    selected={fund?.id === f.id}
+                    leading={<CategoryIcon icon={f.icon} color={f.color} size={20} />}
+                    onPress={() => {
+                      setError(undefined);
+                      setFund(f);
+                    }}
+                  />
+                ))}
+                <Chip
+                  label={t('funds.add')}
+                  icon="plus"
+                  onPress={() => router.push('/fund-edit')}
+                />
+              </View>
+            </ScrollView>
+          </View>
+        ) : null}
+
         <View style={styles.chips}>
           <Chip
             label={formatShortRelative(date)}
@@ -257,7 +294,6 @@ export function FundEntryScreen() {
           size="large"
           tint={tint}
           loading={saving}
-          disabled={!fund}
           onPress={onSave}
         />
       </View>
@@ -280,6 +316,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   body: { paddingHorizontal: 16, gap: 10, paddingTop: 4 },
   display: { paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, alignItems: 'flex-end' },
+  categories: { gap: 6 },
   chips: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
   note: { minHeight: 48, borderWidth: 1, paddingHorizontal: 14, fontSize: 16 },
   keypad: { paddingHorizontal: 16, gap: 8, paddingTop: 8 },

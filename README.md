@@ -12,8 +12,11 @@ syncs with the user's own Google Drive.
 - Categories with icon and colour pickers, reorder and archive (history is kept)
 - Monthly budgets (overall and per category) with progress bars and local alerts at 80% and 100%
 - Recurring income and expenses, generated on app open and by a background task, with reminders
-- Sinking funds for occasional big expenses (gifts, vacations): savings goals with a target,
-  date and monthly plan, tracked separately from daily spending and account balances
+- A sinking fund for occasional big expenses, with its own required monthly budget and
+  categories (gifts, vacation, wedding and more) that each take expenses and added funds, have
+  an optional target and show six-month graphs. Settings choose where leftovers go: the main
+  budget's to next month or into the sinking fund, the sinking fund budget's to next month or
+  kept saved. An optional Overview card shows the whole fund as one graph.
 - Google Drive (iOS): two-way sync between devices, daily backups kept for 30 days, and an
   always up-to-date `Where'd It Go.xlsx` spreadsheet in a "Where'd It Go" folder
 - Reports: spending by category, income vs expenses, balance over time, this month vs last month

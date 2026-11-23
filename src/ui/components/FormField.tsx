@@ -95,6 +95,39 @@ export function SwitchRow({
   );
 }
 
+export function CheckboxRow({
+  label,
+  value,
+  onValueChange,
+}: {
+  label: string;
+  value: boolean;
+  onValueChange: (v: boolean) => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: value }}
+      accessibilityLabel={label}
+      onPress={() => onValueChange(!value)}
+      style={({ pressed }) => [
+        styles.row,
+        { backgroundColor: pressed ? colors.surfaceVariant : 'transparent' },
+      ]}
+    >
+      <Icon
+        name={value ? 'checkbox-marked' : 'checkbox-blank-outline'}
+        size={24}
+        color={value ? colors.primary : colors.textSecondary}
+      />
+      <AppText variant="body" style={styles.flex}>
+        {label}
+      </AppText>
+    </Pressable>
+  );
+}
+
 /** A tappable settings-style row with a value and chevron. */
 export function ListRow({
   label,

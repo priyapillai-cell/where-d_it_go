@@ -33,6 +33,7 @@ import { type SelectOption, SelectSheet } from '../../components/SelectSheet';
 import { useTheme } from '../../theme/ThemeProvider';
 import { showAlert } from '../../dialogs';
 import { currencyLabel, currencyOptions } from '../../currencyOptions';
+import { SinkingFundSettings } from './SinkingFundSettings';
 
 type Sheet = 'none' | 'currency' | 'language' | 'theme' | 'week' | 'month';
 
@@ -303,6 +304,8 @@ export function SettingsScreen() {
       <AppText variant="caption" color="textSecondary" style={styles.hint}>
         {`${t('settings.multiCurrency')}: ${t('settings.multiCurrencyHint')}`}
       </AppText>
+
+      <SinkingFundSettings />
 
       <SectionTitle>{t('settings.security')}</SectionTitle>
       <Card style={styles.switchCard}>

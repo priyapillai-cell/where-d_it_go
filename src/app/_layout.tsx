@@ -67,6 +67,7 @@ function AppNavigator() {
       <Stack.Screen name="fund" options={{ title: '', headerBackTitle: t('nav.funds') }} />
       <Stack.Screen name="fund-edit" options={modal} />
       <Stack.Screen name="fund-entry" options={modal} />
+      <Stack.Screen name="fund-budget" options={modal} />
       <Stack.Screen name="passcode" options={modal} />
       <Stack.Screen name="import-csv" options={modal} />
       <Stack.Screen name="backups" options={modal} />
