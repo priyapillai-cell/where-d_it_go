@@ -34,6 +34,7 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { showAlert } from '../../dialogs';
 import { currencyLabel, currencyOptions } from '../../currencyOptions';
 import { SinkingFundSettings } from './SinkingFundSettings';
+import { useRestoreFromFile } from './useRestoreFromFile';
 
 type Sheet = 'none' | 'currency' | 'language' | 'theme' | 'week' | 'month';
 
@@ -83,6 +84,7 @@ export function SettingsScreen() {
   const [sheet, setSheet] = useState<Sheet>('none');
   const [canUseBiometrics, setCanUseBiometrics] = useState(false);
   const [busy, setBusy] = useState(false);
+  const restore = useRestoreFromFile();
   const driveOn = useSyncStore((s) => s.status !== 'off');
 
   useEffect(() => {
@@ -352,6 +354,11 @@ export function SettingsScreen() {
           onPress={() => void runExport('json')}
         />
         <ListRow
+          icon="backup-restore"
+          label={t('settings.restoreBackup')}
+          onPress={() => void restore.restoreFromFile()}
+        />
+        <ListRow
           icon="file-import-outline"
           label={t('settings.importCsv')}
           onPress={() => router.push('/import-csv')}
@@ -361,11 +368,6 @@ export function SettingsScreen() {
           label={t('settings.googleDrive')}
           value={driveOn ? t('settings.googleDriveOn') : t('settings.googleDriveOff')}
           onPress={() => router.push('/drive')}
-        />
-        <ListRow
-          icon="backup-restore"
-          label={t('settings.backups')}
-          onPress={() => router.push('/backups')}
         />
         <ListRow
           icon="delete-forever-outline"

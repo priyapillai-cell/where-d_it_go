@@ -1,10 +1,3 @@
-export interface StoredFile {
-  name: string;
-  uri: string;
-  size: number;
-  modifiedAt: Date | null;
-}
-
 export type ExportKind = 'csv' | 'json' | 'xlsx';
 
 export const EXPORT_TYPES: Record<ExportKind, { mimeType: string; UTI: string }> = {
@@ -23,10 +16,6 @@ export interface PickedText {
   text: string;
 }
 
-export function backupTimestamp(now: Date): string {
+export function fileTimestamp(now: Date): string {
   return now.toISOString().slice(0, 19).replace(/[:T]/g, '-');
-}
-
-export function backupFileName(now: Date): string {
-  return `pocket-ledger-${backupTimestamp(now)}.json`;
 }
