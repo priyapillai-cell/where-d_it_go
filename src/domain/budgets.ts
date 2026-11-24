@@ -68,3 +68,21 @@ export function newlyReachedThresholds(
 ): BudgetThreshold[] {
   return BUDGET_THRESHOLDS.filter((t) => ratio * 100 >= t && !alreadyNotified.includes(t));
 }
+
+/**
+ * Only one monthly budget can be set, so opening the editor without an id edits the existing
+ * budget: the overall one in `currency` if present, else any. `null` means a new one is allowed.
+ */
+export function budgetToEdit(
+  budgets: readonly Budget[],
+  id: string | undefined,
+  currency: string,
+): Budget | null {
+  if (id) return budgets.find((b) => b.id === id) ?? null;
+  return (
+    budgets.find((b) => b.categoryId === null && b.currency === currency) ??
+    budgets.find((b) => b.categoryId === null) ??
+    budgets[0] ??
+    null
+  );
+}

@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { listBudgets } from '@/db/repositories/budgetRepository';
+import { budgetToEdit } from '@/domain/budgets';
 import { parseAmount, toMajorString } from '@/domain/money';
 import type { Budget } from '@/domain/types';
 import type { ValidationCode } from '@/domain/validation';
@@ -19,7 +20,8 @@ import { AppText } from '../../components/AppText';
 import { Button } from '../../components/Button';
 import { CategoryIcon } from '../../components/CategoryIcon';
 import { Chip } from '../../components/Chip';
-import { FieldLabel, TextField } from '../../components/FormField';
+import { TextField } from '../../components/FormField';
+import { Icon } from '../../components/Icon';
 import { ModalHeader } from '../../components/ModalHeader';
 import { SelectSheet } from '../../components/SelectSheet';
 import { ListSkeleton } from '../../components/States';
@@ -31,9 +33,10 @@ const OVERALL = '__overall__';
 
 export function BudgetEditScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
+  const defaultCurrency = useAppStore((s) => s.settings.defaultCurrency);
   const { data: budgets } = useDbQuery('budget-edit', listBudgets);
-  if (params.id && !budgets) return <ListSkeleton />;
-  const existing = budgets?.find((b) => b.id === params.id) ?? null;
+  if (!budgets) return <ListSkeleton />;
+  const existing = budgetToEdit(budgets, params.id, defaultCurrency);
   return <BudgetForm key={existing?.id ?? 'new'} existing={existing} />;
 }
 
@@ -44,13 +47,13 @@ function BudgetForm({ existing }: { existing: Budget | null }) {
   const accounts = useAppStore((s) => s.accounts);
   const defaultCurrency = useAppStore((s) => s.settings.defaultCurrency);
 
-  const [scope, setScope] = useState<string>(existing?.categoryId ?? OVERALL);
+  const scope = existing?.categoryId ?? OVERALL;
   const [currency, setCurrency] = useState(existing?.currency ?? defaultCurrency);
   const [amountText, setAmountText] = useState(
     existing ? toMajorString(existing.amount, existing.currency) : '',
   );
   const [error, setError] = useState<ValidationCode | 'invalidNumber' | undefined>();
-  const [sheet, setSheet] = useState<'none' | 'scope' | 'currency'>('none');
+  const [sheet, setSheet] = useState<'none' | 'currency'>('none');
   const [saving, setSaving] = useState(false);
 
   const expenseCategories = categories.filter(
@@ -119,24 +122,15 @@ function BudgetForm({ existing }: { existing: Budget | null }) {
         onClose={() => router.back()}
       />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <FieldLabel>{t('budgets.scope')}</FieldLabel>
+        <View style={styles.scope}>
+          {selectedCategory ? (
+            <CategoryIcon icon={selectedCategory.icon} color={selectedCategory.color} size={28} />
+          ) : (
+            <Icon name="wallet-outline" size={24} color={colors.primary} />
+          )}
+          <AppText variant="subtitle">{scopeLabel}</AppText>
+        </View>
         <View style={styles.wrap}>
-          <Chip
-            label={scopeLabel}
-            leading={
-              selectedCategory ? (
-                <CategoryIcon
-                  icon={selectedCategory.icon}
-                  color={selectedCategory.color}
-                  size={24}
-                />
-              ) : undefined
-            }
-            icon={selectedCategory ? undefined : 'wallet-outline'}
-            trailingIcon="chevron-down"
-            accessibilityLabel={`${t('budgets.scope')}: ${scopeLabel}`}
-            onPress={() => setSheet('scope')}
-          />
           {currencies.length > 1 ? (
             <Chip
               label={currency}
@@ -187,21 +181,6 @@ function BudgetForm({ existing }: { existing: Budget | null }) {
       </View>
 
       <SelectSheet
-        visible={sheet === 'scope'}
-        title={t('budgets.scope')}
-        options={[
-          { value: OVERALL, label: t('budgets.allExpenses') },
-          ...expenseCategories.map((c) => ({
-            value: c.id,
-            label: c.name,
-            leading: <CategoryIcon icon={c.icon} color={c.color} size={32} />,
-          })),
-        ]}
-        selected={scope}
-        onSelect={setScope}
-        onClose={() => setSheet('none')}
-      />
-      <SelectSheet
         visible={sheet === 'currency'}
         title={t('budgets.currency')}
         options={currencies.map((code) => ({ value: code, label: code }))}
@@ -219,6 +198,7 @@ function BudgetForm({ existing }: { existing: Budget | null }) {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { padding: 16, gap: 12, paddingBottom: 32 },
+  scope: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   delete: { marginTop: 16 },
   footer: { paddingHorizontal: 16, paddingTop: 8 },

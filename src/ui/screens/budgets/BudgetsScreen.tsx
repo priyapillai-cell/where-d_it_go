@@ -8,9 +8,9 @@ import { type BudgetOverviewItem, loadBudgetOverview } from '@/services/budgetSe
 import { categoryMap, useAppStore } from '@/state/appStore';
 
 import { AppText } from '../../components/AppText';
-import { Button, IconButton } from '../../components/Button';
+import { IconButton } from '../../components/Button';
 import { CategoryIcon } from '../../components/CategoryIcon';
-import { Card, SectionTitle } from '../../components/FormField';
+import { SectionTitle } from '../../components/FormField';
 import { Icon } from '../../components/Icon';
 import { ProgressBar } from '../../components/ProgressBar';
 import { EmptyState, ListSkeleton } from '../../components/States';
@@ -90,17 +90,19 @@ export function BudgetsScreen() {
     loadBudgetOverview(db, new Date(), settings.firstDayOfMonth),
   );
 
+  const hasBudget = (data?.items.length ?? 0) > 0;
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        <IconButton
-          icon="plus"
-          label={t('budgets.add')}
-          onPress={() => router.push('/budget-edit')}
-        />
-      ),
+      headerRight: () =>
+        data && !hasBudget ? (
+          <IconButton
+            icon="plus"
+            label={t('budgets.add')}
+            onPress={() => router.push('/budget-edit')}
+          />
+        ) : null,
     });
-  }, [navigation]);
+  }, [navigation, data, hasBudget]);
 
   if (loading && !data) return <ListSkeleton />;
 
@@ -133,29 +135,19 @@ export function BudgetsScreen() {
         </AppText>
       ) : null}
 
-      <SectionTitle>{t('budgets.overall')}</SectionTitle>
-      {overall.length > 0 ? (
-        overall.map((item) => (
-          <BudgetCard
-            key={item.budget.id}
-            item={item}
-            name={`${t('budgets.allExpenses')}${currencies.size > 1 ? ` (${item.budget.currency})` : ''}`}
-            icon="wallet-outline"
-            iconColor={colors.primary}
-          />
-        ))
-      ) : (
-        <Card style={styles.placeholder}>
-          <Button
-            label={t('budgets.add')}
-            icon="plus"
-            variant="text"
-            onPress={() => router.push('/budget-edit')}
-          />
-        </Card>
-      )}
+      {overall.map((item) => (
+        <BudgetCard
+          key={item.budget.id}
+          item={item}
+          name={`${t('budgets.allExpenses')}${currencies.size > 1 ? ` (${item.budget.currency})` : ''}`}
+          icon="wallet-outline"
+          iconColor={colors.primary}
+        />
+      ))}
 
-      {perCategory.length > 0 ? <SectionTitle>{t('budgets.perCategory')}</SectionTitle> : null}
+      {perCategory.length > 0 && overall.length > 0 ? (
+        <SectionTitle>{t('budgets.perCategory')}</SectionTitle>
+      ) : null}
       {perCategory.map((item) => {
         const category = item.budget.categoryId ? byId.get(item.budget.categoryId) : undefined;
         return (
@@ -169,12 +161,9 @@ export function BudgetsScreen() {
         );
       })}
 
-      <Button
-        label={t('budgets.add')}
-        icon="plus"
-        variant="tonal"
-        onPress={() => router.push('/budget-edit')}
-      />
+      <AppText variant="caption" color="textSecondary">
+        {t('budgets.singleHint')}
+      </AppText>
       {currencies.size > 1 ? (
         <AppText variant="caption" color="textSecondary">
           {t('budgets.currencyNote')}
@@ -190,5 +179,4 @@ const styles = StyleSheet.create({
   card: { borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 10 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  placeholder: { padding: 4 },
 });

@@ -1,7 +1,9 @@
 import { makeTransaction } from '@/test/factories';
 
+import type { Budget } from '../types';
 import {
   budgetProgress,
+  budgetToEdit,
   budgetStatus,
   monthBudgetSummary,
   newlyReachedThresholds,
@@ -72,5 +74,31 @@ describe('monthBudgetSummary', () => {
   it('returns null without budgets in that currency', () => {
     expect(monthBudgetSummary([item(null, 'USD', 10, 1)], 'INR')).toBeNull();
     expect(monthBudgetSummary([], 'INR')).toBeNull();
+  });
+});
+
+describe('budgetToEdit', () => {
+  const budget = (id: string, categoryId: string | null, currency = 'INR'): Budget => ({
+    id,
+    categoryId,
+    currency,
+    period: 'monthly',
+    amount: 1000,
+  });
+
+  it('allows a new budget only when none exists', () => {
+    expect(budgetToEdit([], undefined, 'INR')).toBeNull();
+  });
+
+  it('opens the existing budget instead of adding a second one', () => {
+    const budgets = [budget('food', 'c1'), budget('usd', null, 'USD'), budget('inr', null)];
+    expect(budgetToEdit(budgets, undefined, 'INR')?.id).toBe('inr');
+    expect(budgetToEdit(budgets.slice(0, 2), undefined, 'INR')?.id).toBe('usd');
+    expect(budgetToEdit(budgets.slice(0, 1), undefined, 'INR')?.id).toBe('food');
+  });
+
+  it('opens the requested budget by id', () => {
+    expect(budgetToEdit([budget('a', null), budget('b', 'c1')], 'b', 'INR')?.id).toBe('b');
+    expect(budgetToEdit([budget('a', null)], 'gone', 'INR')).toBeNull();
   });
 });
