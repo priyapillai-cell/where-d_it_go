@@ -6,17 +6,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { listInRange } from '@/db/repositories/transactionRepository';
 import { aggregateByCategory, sumByType } from '@/domain/aggregation';
-import { totalsByCurrency } from '@/domain/balance';
 import { periodToIsoRange } from '@/domain/periods';
 import type { Category, CategoryType } from '@/domain/types';
 import { t } from '@/i18n';
 import { formatPercent, money } from '@/i18n/format';
+import { loadMainMonthBudget } from '@/services/leftoverService';
 import { categoryMap, useAppStore } from '@/state/appStore';
 import { useFilterStore } from '@/state/filterStore';
 import { ALL_ACCOUNTS, useHomeStore } from '@/state/homeStore';
 import { scopeForSelection } from '@/state/selectors';
 
-import { AccountSheet } from '../../components/AccountSheet';
 import { AppText } from '../../components/AppText';
 import { Button, IconButton } from '../../components/Button';
 import { CategoryIcon } from '../../components/CategoryIcon';
@@ -35,7 +34,6 @@ import {
   type RingItem,
 } from './CategoryRing';
 import { FundsOverviewCard } from './FundsOverviewCard';
-import { MonthBudgetCard } from './MonthBudgetCard';
 
 const MAX_CHART = 420;
 
@@ -44,43 +42,47 @@ export function HomeScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const [accountSheet, setAccountSheet] = useState(false);
   const [periodMenu, setPeriodMenu] = useState(false);
 
   const settings = useAppStore((s) => s.settings);
   const accounts = useAppStore((s) => s.accounts);
   const categories = useAppStore((s) => s.categories);
-  const balances = useAppStore((s) => s.balances);
-  const {
-    period,
-    setKind,
-    shift,
-    setCustom,
-    realign,
-    accountId,
-    setAccountId,
-    chartType,
-    toggleChartType,
-  } = useHomeStore();
+  const { period, setKind, shift, setCustom, realign, chartType, toggleChartType } = useHomeStore();
   const periodOptions = useMemo(
     () => ({ firstDayOfWeek: settings.firstDayOfWeek, firstDayOfMonth: settings.firstDayOfMonth }),
     [settings.firstDayOfWeek, settings.firstDayOfMonth],
   );
 
   useEffect(() => realign(periodOptions), [periodOptions, realign]);
-  useEffect(() => {
-    if (accountId !== ALL_ACCOUNTS && !accounts.some((a) => a.id === accountId))
-      setAccountId(ALL_ACCOUNTS);
-  }, [accountId, accounts, setAccountId]);
-
   const scope = useMemo(
-    () => scopeForSelection(accountId, accounts, settings.defaultCurrency),
-    [accountId, accounts, settings.defaultCurrency],
+    () => scopeForSelection(ALL_ACCOUNTS, accounts, settings.defaultCurrency),
+    [accounts, settings.defaultCurrency],
   );
   const { from, to } = periodToIsoRange(period);
   const { data: transactions, loading } = useDbQuery(
     `home|${from}|${to}|${scope.accountIds.join(',')}`,
     (db) => listInRange(db, { from, to, accountIds: scope.accountIds }),
+  );
+
+  const budgetMonth = period.kind === 'month' ? period.start : null;
+  const { data: monthBudget } = useDbQuery(
+    [
+      'home-budget',
+      scope.currency,
+      budgetMonth?.toISOString(),
+      settings.firstDayOfMonth,
+      settings.budgetLeftover,
+      settings.budgetLeftoverSince,
+    ].join('|'),
+    async (db) =>
+      budgetMonth
+        ? loadMainMonthBudget(db, budgetMonth, {
+            defaultCurrency: scope.currency,
+            firstDayOfMonth: settings.firstDayOfMonth,
+            budgetLeftover: settings.budgetLeftover,
+            budgetLeftoverSince: settings.budgetLeftoverSince,
+          })
+        : null,
   );
 
   const byId = useMemo(() => categoryMap(categories), [categories]);
@@ -103,25 +105,12 @@ export function HomeScreen() {
   const ring = ringItems.slice(0, MAX_RING_ITEMS);
   const overflow = ringItems.slice(MAX_RING_ITEMS);
 
-  const selectedAccount = accounts.find((a) => a.id === accountId);
-  const balanceLines = selectedAccount
-    ? [
-        money(
-          balances.get(selectedAccount.id) ?? selectedAccount.initialBalance,
-          selectedAccount.currency,
-        ),
-      ]
-    : totalsByCurrency(accounts, balances, settings.defaultCurrency).map((c) =>
-        money(c.total, c.currency),
-      );
-
   const openEditor = (type: CategoryType, category?: Category) => {
     router.push({
       pathname: '/transaction',
       params: {
         type,
         ...(category ? { categoryId: category.id } : {}),
-        ...(selectedAccount ? { accountId: selectedAccount.id } : {}),
       },
     });
   };
@@ -132,7 +121,7 @@ export function HomeScreen() {
       types: [chartType],
       from,
       to,
-      accountIds: selectedAccount ? [selectedAccount.id] : [],
+      accountIds: [],
     });
     router.push('/transactions');
   };
@@ -144,6 +133,18 @@ export function HomeScreen() {
   }));
   const typeColor = chartType === 'expense' ? colors.expense : colors.income;
   const centerLabel = chartType === 'expense' ? t('home.totalExpenses') : t('home.totalIncome');
+  const budget = chartType === 'expense' && period.kind === 'month' ? monthBudget : null;
+  const centerA11y = [
+    `${centerLabel} ${money(totalForType, scope.currency)}`,
+    budget ? t('home.budgetA11y', { limit: money(budget.progress.limit, scope.currency) }) : null,
+    budget
+      ? budget.progress.remaining >= 0
+        ? t('budgets.remaining', { amount: money(budget.progress.remaining, scope.currency) })
+        : t('budgets.over', { amount: money(-budget.progress.remaining, scope.currency) })
+      : null,
+  ]
+    .filter(Boolean)
+    .join('. ');
 
   return (
     <View style={[styles.flex, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -162,31 +163,6 @@ export function HomeScreen() {
           onPress={() => setPeriodMenu(true)}
         />
       </View>
-      <View style={styles.accountHeader}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${selectedAccount?.name ?? t('home.allAccounts')}. ${t('home.balance')} ${balanceLines.join(', ')}`}
-          accessibilityHint={t('home.selectAccount')}
-          onPress={() => setAccountSheet(true)}
-          style={styles.accountButton}
-        >
-          <View style={styles.accountRow}>
-            <AppText variant="label" color="textSecondary" numberOfLines={1}>
-              {selectedAccount?.name ?? t('home.allAccounts')}
-            </AppText>
-            <Icon name="chevron-down" size={18} color={colors.textSecondary} />
-          </View>
-          <AppText variant="title" tabular numberOfLines={1} adjustsFontSizeToFit>
-            {balanceLines[0] ?? money(0, settings.defaultCurrency)}
-          </AppText>
-          {balanceLines.length > 1 ? (
-            <AppText variant="caption" color="textSecondary" numberOfLines={1}>
-              {balanceLines.slice(1).join(' · ')}
-            </AppText>
-          ) : null}
-        </Pressable>
-      </View>
-
       <PeriodSelector
         period={period}
         onKindChange={(kind) => setKind(kind, periodOptions)}
@@ -196,7 +172,6 @@ export function HomeScreen() {
       />
 
       <ScrollView contentContainerStyle={[styles.scroll, { paddingBottom: 120 + insets.bottom }]}>
-        <MonthBudgetCard currency={scope.currency} />
         <View style={[styles.chartArea, { width: chartSize, height: chartSize }]}>
           <View
             style={[
@@ -211,25 +186,11 @@ export function HomeScreen() {
             >
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${centerLabel} ${money(totalForType, scope.currency)}`}
+                accessibilityLabel={centerA11y}
                 accessibilityHint={t('home.toggleHint')}
                 onPress={toggleChartType}
                 style={[styles.center, { width: donutSize * 0.7, height: donutSize * 0.7 }]}
               >
-                <View style={styles.accountRow}>
-                  <Icon
-                    name={
-                      chartType === 'expense'
-                        ? 'arrow-up-bold-circle-outline'
-                        : 'arrow-down-bold-circle-outline'
-                    }
-                    size={18}
-                    color={typeColor}
-                  />
-                  <AppText variant="label" color="textSecondary">
-                    {centerLabel}
-                  </AppText>
-                </View>
                 {loading && !transactions ? (
                   <Skeleton width={120} height={28} />
                 ) : (
@@ -243,11 +204,17 @@ export function HomeScreen() {
                     {money(totalForType, scope.currency)}
                   </AppText>
                 )}
-                <AppText variant="caption" color="textSecondary" numberOfLines={1}>
-                  {chartType === 'expense'
-                    ? `${t('home.totalIncome')} ${money(totals.income, scope.currency)}`
-                    : `${t('home.totalExpenses')} ${money(totals.expense, scope.currency)}`}
-                </AppText>
+                {budget ? (
+                  <AppText
+                    variant="title"
+                    tabular
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    style={{ color: colors.income }}
+                  >
+                    {money(budget.progress.limit, scope.currency)}
+                  </AppText>
+                ) : null}
                 <Icon name="swap-horizontal" size={18} color={colors.textSecondary} />
               </Pressable>
             </DonutChart>
@@ -342,14 +309,6 @@ export function HomeScreen() {
           onPress={() => openEditor('income')}
         />
       </View>
-
-      <AccountSheet
-        visible={accountSheet}
-        includeAll
-        selected={accountId}
-        onSelect={setAccountId}
-        onClose={() => setAccountSheet(false)}
-      />
     </View>
   );
 }
@@ -359,9 +318,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, gap: 4 },
   // Pulls the logo toward the menu icon, past the menu button's touch padding.
   logo: { marginLeft: -8 },
-  accountHeader: { flexDirection: 'row', paddingHorizontal: 16 },
-  accountButton: { flex: 1, alignItems: 'center', minHeight: 48, justifyContent: 'center' },
-  accountRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   scroll: { alignItems: 'center', paddingTop: 8 },
   chartArea: { position: 'relative' },
   donut: { position: 'absolute' },

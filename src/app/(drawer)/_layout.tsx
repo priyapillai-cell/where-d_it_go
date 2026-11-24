@@ -9,10 +9,12 @@ const SCREENS: readonly {
   title: TranslationKey;
   icon: string;
   headerShown?: boolean;
+  /** Still routable, but not listed in the menu. */
+  hidden?: boolean;
 }[] = [
   { name: 'index', title: 'nav.home', icon: 'chart-donut', headerShown: false },
   { name: 'transactions', title: 'nav.transactions', icon: 'format-list-bulleted' },
-  { name: 'accounts', title: 'nav.accounts', icon: 'wallet-outline' },
+  { name: 'accounts', title: 'nav.accounts', icon: 'wallet-outline', hidden: true },
   { name: 'categories', title: 'nav.categories', icon: 'shape-outline' },
   { name: 'budgets', title: 'nav.budgets', icon: 'target' },
   { name: 'recurring', title: 'nav.recurring', icon: 'calendar-sync' },
@@ -44,6 +46,7 @@ export default function DrawerLayout() {
           options={{
             title: t(screen.title),
             headerShown: screen.headerShown ?? true,
+            ...(screen.hidden ? { drawerItemStyle: { display: 'none' as const } } : {}),
             drawerIcon: ({ color, size }) => (
               <Icon
                 name={screen.icon}
