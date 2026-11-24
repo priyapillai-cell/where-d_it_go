@@ -1,10 +1,16 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { t } from '@/i18n';
+import { modalTopInset } from '@/ui/modalInsets';
 
 import { AppText } from './AppText';
 import { IconButton } from './Button';
+
+export function useModalTopInset(): number {
+  return modalTopInset(Platform.OS, useSafeAreaInsets().top);
+}
 
 export function ModalHeader({
   title,
@@ -15,8 +21,9 @@ export function ModalHeader({
   onClose: () => void;
   right?: ReactNode;
 }) {
+  const topInset = useModalTopInset();
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { paddingTop: styles.header.paddingTop + topInset }]}>
       <IconButton icon="close" label={t('common.close')} onPress={onClose} />
       <AppText variant="title" accessibilityRole="header" style={styles.title} align="center">
         {title}

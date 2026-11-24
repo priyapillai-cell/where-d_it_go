@@ -35,6 +35,7 @@ import { CategoryIcon } from '../../components/CategoryIcon';
 import { Chip } from '../../components/Chip';
 import { DatePickerModal } from '../../components/DatePickerModal';
 import { Keypad } from '../../components/Keypad';
+import { useModalTopInset } from '../../components/ModalHeader';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { useTheme } from '../../theme/ThemeProvider';
 
@@ -48,6 +49,7 @@ export function TransactionEditorScreen() {
   const params = useLocalSearchParams<Params>();
   const { colors, radius } = useTheme();
   const insets = useSafeAreaInsets();
+  const topInset = useModalTopInset();
   const accounts = useAppStore(useShallow(selectActiveAccounts));
   const allAccounts = useAppStore((s) => s.accounts);
   const categories = useAppStore((s) => s.categories);
@@ -204,7 +206,11 @@ export function TransactionEditorScreen() {
     <View
       style={[
         styles.flex,
-        { backgroundColor: colors.background, paddingBottom: insets.bottom + 8 },
+        {
+          backgroundColor: colors.background,
+          paddingTop: topInset,
+          paddingBottom: insets.bottom + 8,
+        },
       ]}
     >
       <View style={styles.header}>
