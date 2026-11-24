@@ -1,6 +1,5 @@
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
 
 import {
   type AttemptState,
@@ -10,6 +9,7 @@ import {
   remainingLockout,
 } from '@/domain/passcode';
 import { t } from '@/i18n';
+import * as SecureStore from '@/services/secureStore';
 import { logger } from '@/utils/logger';
 
 const HASH_KEY = 'pocket-ledger.passcode';

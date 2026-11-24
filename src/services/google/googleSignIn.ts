@@ -7,8 +7,9 @@ import {
   TokenTypeHint,
 } from 'expo-auth-session';
 import Constants from 'expo-constants';
-import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+
+import * as SecureStore from '@/services/secureStore';
 
 import {
   type AccountStorage,
