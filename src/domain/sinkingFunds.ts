@@ -201,3 +201,11 @@ export function totalsByFund(
   }
   return totals;
 }
+
+/**
+ * The budget setup screen replaces the sinking fund only while it is empty, so categories and
+ * entries that exist without a budget (after an import, for example) stay visible.
+ */
+export function needsFundBudgetSetup(hasBudget: boolean, categoryCount: number): boolean {
+  return !hasBudget && categoryCount === 0;
+}

@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { parseCalendarDay } from '@/domain/sinkingFunds';
+import { needsFundBudgetSetup, parseCalendarDay } from '@/domain/sinkingFunds';
 import type { FundEntryType, SinkingFund } from '@/domain/types';
 import { t } from '@/i18n';
 import { formatDate, formatPercent, money } from '@/i18n/format';
@@ -198,11 +198,13 @@ export function FundsScreen() {
     (db) => loadFundsDashboard(db, period, settings, now),
   );
   const hasBudget = settings.fundBudget !== null;
+  const categoryCount = (data?.active.length ?? 0) + (data?.archived.length ?? 0);
+  const setup = needsFundBudgetSetup(hasBudget, categoryCount);
 
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () =>
-        hasBudget ? (
+        setup ? null : (
           <View style={styles.headerActions}>
             <IconButton
               icon="filter-variant"
@@ -211,11 +213,13 @@ export function FundsScreen() {
             />
             <IconButton icon="plus" label={t('funds.add')} onPress={() => openEditor()} />
           </View>
-        ) : null,
+        ),
     });
-  }, [navigation, hasBudget, period.kind]);
+  }, [navigation, setup, period.kind]);
 
-  if (!hasBudget) {
+  if (loading && !data) return <ListSkeleton />;
+
+  if (setup) {
     return (
       <ScrollView
         style={{ backgroundColor: colors.background }}
@@ -228,8 +232,6 @@ export function FundsScreen() {
       </ScrollView>
     );
   }
-
-  if (loading && !data) return <ListSkeleton />;
 
   const currency = settings.defaultCurrency;
   const active = data?.active ?? [];
@@ -325,6 +327,7 @@ export function FundsScreen() {
             onPress={(fund) => openEntry(entryType, fund)}
           />
         </View>
+        {hasBudget ? null : <BudgetRequired />}
         {overflow.length > 0 ? (
           <CategoryGrid
             items={overflow}

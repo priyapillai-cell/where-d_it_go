@@ -4,6 +4,7 @@ import {
   fundMonthlyHistory,
   fundTotalsByCurrency,
   monthsUntil,
+  needsFundBudgetSetup,
   parseCalendarDay,
   summarizeFund,
   toCalendarDay,
@@ -211,5 +212,14 @@ describe('totalsByFund', () => {
       new Date('2026-12-01T00:00:00.000Z'),
     );
     expect(Object.fromEntries(totals)).toEqual({ a: 500, b: 50 });
+  });
+});
+
+describe('needsFundBudgetSetup', () => {
+  it('asks for a budget only while the sinking fund has no categories', () => {
+    expect(needsFundBudgetSetup(false, 0)).toBe(true);
+    expect(needsFundBudgetSetup(false, 2)).toBe(false);
+    expect(needsFundBudgetSetup(true, 0)).toBe(false);
+    expect(needsFundBudgetSetup(true, 2)).toBe(false);
   });
 });
