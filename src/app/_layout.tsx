@@ -12,6 +12,7 @@ import { useAppStore } from '@/state/appStore';
 import { ErrorBoundary } from '@/ui/components/ErrorBoundary';
 import { LockGate } from '@/ui/components/LockGate';
 import { StartupGate } from '@/ui/components/StartupGate';
+import { StatusBarFadeInset } from '@/ui/components/StatusBarFadeInset';
 import { ToastHost } from '@/ui/components/ToastHost';
 import { useForegroundRefresh } from '@/ui/hooks/useForegroundRefresh';
 import { AppThemeProvider, useTheme } from '@/ui/theme/ThemeProvider';
@@ -93,16 +94,18 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
-        <AppThemeProvider preference={themePreference}>
-          <NavigationTheme>
-            <ErrorBoundary>
-              <AppNavigator key={language} />
-              <StartupGate />
-              <ToastHost />
-              <LockGate />
-            </ErrorBoundary>
-          </NavigationTheme>
-        </AppThemeProvider>
+        <StatusBarFadeInset>
+          <AppThemeProvider preference={themePreference}>
+            <NavigationTheme>
+              <ErrorBoundary>
+                <AppNavigator key={language} />
+                <StartupGate />
+                <ToastHost />
+                <LockGate />
+              </ErrorBoundary>
+            </NavigationTheme>
+          </AppThemeProvider>
+        </StatusBarFadeInset>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

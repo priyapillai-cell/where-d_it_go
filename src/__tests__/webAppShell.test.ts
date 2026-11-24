@@ -15,6 +15,10 @@ describe('web app shell', () => {
     expect(html).toContain('name="apple-mobile-web-app-capable" content="yes"');
   });
 
+  it('leaves out the deprecated iOS status bar style', () => {
+    expect(html).not.toContain('apple-mobile-web-app-status-bar-style');
+  });
+
   it('gives Add to Home Screen the app icon and name', () => {
     expect(html).toContain('rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"');
     expect(html).toContain('name="apple-mobile-web-app-title" content="Where\'d It Go?"');
