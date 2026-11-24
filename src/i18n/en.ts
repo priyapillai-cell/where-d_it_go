@@ -339,7 +339,7 @@ export const en = {
       "What you don't spend from the sinking fund budget simply stays saved in the fund.",
     fundLeftoverHintNextMonth:
       "What you don't spend from the sinking fund budget is added to next month's sinking fund budget.",
-    showFundsOnOverview: 'Show the sinking fund graph on Overview',
+    showFundsOnOverview: 'Include sinking fund spending in the Overview chart',
     title: 'Settings',
     general: 'General',
     defaultCurrency: 'Default currency',
@@ -664,8 +664,6 @@ export const en = {
     chartTitle: 'Last 6 months',
     chartA11y: 'Added and spent over the last six months',
     balanceTrend: 'Balance',
-    overviewTitle: 'Sinking fund',
-    overviewHint: 'Opens the sinking fund',
   },
   excel: {
     sheetTransactions: 'Transactions',

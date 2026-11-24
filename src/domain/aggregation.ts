@@ -42,6 +42,31 @@ export function aggregateByCategory(
     .sort((a, b) => b.total - a.total);
 }
 
+export type OverviewSlice =
+  | { kind: 'category'; categoryId: string | null; total: MinorUnits; share: number }
+  | { kind: 'fund'; total: MinorUnits; share: number };
+
+/**
+ * Category expense totals plus sinking fund spending as one more slice, largest first, with
+ * shares of the combined total. A zero fund total adds no slice.
+ */
+export function withFundSlice(
+  breakdown: readonly CategoryTotal[],
+  fundSpend: MinorUnits,
+): { slices: OverviewSlice[]; total: MinorUnits } {
+  const total = breakdown.reduce((sum, row) => sum + row.total, 0) + Math.max(0, fundSpend);
+  const share = (value: MinorUnits) => (total === 0 ? 0 : value / total);
+  const slices: OverviewSlice[] = breakdown.map((row) => ({
+    kind: 'category',
+    categoryId: row.categoryId,
+    total: row.total,
+    share: share(row.total),
+  }));
+  if (fundSpend > 0) slices.push({ kind: 'fund', total: fundSpend, share: share(fundSpend) });
+  slices.sort((a, b) => b.total - a.total);
+  return { slices, total };
+}
+
 export interface TypeTotals {
   income: MinorUnits;
   expense: MinorUnits;

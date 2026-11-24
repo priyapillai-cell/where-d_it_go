@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { fundSpendTotal } from '@/db/repositories/fundRepository';
 import { listInRange } from '@/db/repositories/transactionRepository';
-import { aggregateByCategory, sumByType } from '@/domain/aggregation';
+import { aggregateByCategory, type OverviewSlice, withFundSlice } from '@/domain/aggregation';
 import { periodToIsoRange } from '@/domain/periods';
-import type { Category, CategoryType } from '@/domain/types';
+import { assertNever, type Category, type CategoryType } from '@/domain/types';
 import { t } from '@/i18n';
 import { formatPercent, money } from '@/i18n/format';
 import { loadMainMonthBudget } from '@/services/leftoverService';
@@ -33,7 +34,6 @@ import {
   RING_ICON,
   type RingItem,
 } from './CategoryRing';
-import { FundsOverviewCard } from './FundsOverviewCard';
 
 const MAX_CHART = 420;
 
@@ -85,13 +85,21 @@ export function HomeScreen() {
         : null,
   );
 
+  const includeFunds = settings.showFundsOnOverview && chartType === 'expense';
+  const fundCurrency = includeFunds ? scope.currency : null;
+  const { data: fundSpend } = useDbQuery(`home-funds|${fundCurrency}|${from}|${to}`, async (db) =>
+    fundCurrency ? fundSpendTotal(db, fundCurrency, from, to) : 0,
+  );
+
   const byId = useMemo(() => categoryMap(categories), [categories]);
-  const totals = useMemo(() => sumByType(transactions ?? []), [transactions]);
   const breakdown = useMemo(
     () => aggregateByCategory(transactions ?? [], chartType),
     [transactions, chartType],
   );
-  const totalForType = chartType === 'expense' ? totals.expense : totals.income;
+  const { slices, total: totalForType } = useMemo(
+    () => withFundSlice(breakdown, fundCurrency ? (fundSpend ?? 0) : 0),
+    [breakdown, fundCurrency, fundSpend],
+  );
 
   const ringItems: RingItem[] = useMemo(() => {
     const spent = new Map(breakdown.map((b) => [b.categoryId, b.total]));
@@ -126,10 +134,35 @@ export function HomeScreen() {
     router.push('/transactions');
   };
 
-  const segments = breakdown.map((b) => ({
-    key: b.categoryId ?? 'none',
-    value: b.total,
-    color: (b.categoryId && byId.get(b.categoryId)?.color) || colors.textSecondary,
+  const describeSlice = (slice: OverviewSlice) => {
+    switch (slice.kind) {
+      case 'category': {
+        const category = slice.categoryId ? byId.get(slice.categoryId) : undefined;
+        return {
+          key: slice.categoryId ?? 'none',
+          name: category?.name ?? t('transactions.uncategorized'),
+          icon: category?.icon ?? 'help',
+          color: category?.color ?? colors.textSecondary,
+          onPress: () => openCategoryTransactions(slice.categoryId),
+        };
+      }
+      case 'fund':
+        return {
+          key: 'sinking-fund',
+          name: t('nav.funds'),
+          icon: 'piggy-bank',
+          color: colors.transfer,
+          onPress: () => router.push('/funds'),
+        };
+      default:
+        return assertNever(slice);
+    }
+  };
+  const rows = slices.map((slice) => ({ slice, ...describeSlice(slice) }));
+  const segments = rows.map((row) => ({
+    key: row.key,
+    value: row.slice.total,
+    color: row.color,
   }));
   const typeColor = chartType === 'expense' ? colors.expense : colors.income;
   const centerLabel = chartType === 'expense' ? t('home.totalExpenses') : t('home.totalIncome');
@@ -241,45 +274,38 @@ export function HomeScreen() {
         ) : null}
 
         <View style={styles.section}>
-          {breakdown.length === 0 && !loading ? (
+          {rows.length === 0 && !loading ? (
             <AppText variant="body" color="textSecondary" align="center" style={styles.emptyHint}>
               {chartType === 'expense' ? t('home.emptyExpenses') : t('home.emptyIncome')}
             </AppText>
           ) : (
-            breakdown.map((row) => {
-              const category = row.categoryId ? byId.get(row.categoryId) : undefined;
-              const name = category?.name ?? t('transactions.uncategorized');
+            rows.map((row) => {
               return (
                 <Pressable
-                  key={row.categoryId ?? 'none'}
+                  key={row.key}
                   accessibilityRole="button"
-                  accessibilityLabel={`${name}, ${formatPercent(row.share)}, ${money(row.total, scope.currency)}`}
-                  onPress={() => openCategoryTransactions(row.categoryId)}
+                  accessibilityLabel={`${row.name}, ${formatPercent(row.slice.share)}, ${money(row.slice.total, scope.currency)}`}
+                  onPress={row.onPress}
                   style={({ pressed }) => [
                     styles.breakdownRow,
                     { backgroundColor: pressed ? colors.surfaceVariant : colors.surface },
                   ]}
                 >
-                  <CategoryIcon
-                    icon={category?.icon ?? 'help'}
-                    color={category?.color ?? colors.textSecondary}
-                    size={36}
-                  />
+                  <CategoryIcon icon={row.icon} color={row.color} size={36} />
                   <AppText variant="body" style={styles.flex} numberOfLines={1}>
-                    {name}
+                    {row.name}
                   </AppText>
                   <AppText variant="caption" color="textSecondary" tabular>
-                    {formatPercent(row.share)}
+                    {formatPercent(row.slice.share)}
                   </AppText>
                   <AppText variant="subtitle" tabular>
-                    {money(row.total, scope.currency)}
+                    {money(row.slice.total, scope.currency)}
                   </AppText>
                 </Pressable>
               );
             })
           )}
         </View>
-        {settings.showFundsOnOverview ? <FundsOverviewCard /> : null}
       </ScrollView>
 
       <View
