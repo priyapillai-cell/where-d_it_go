@@ -130,6 +130,12 @@ function BudgetForm({ existing }: { existing: Budget | null }) {
           )}
           <AppText variant="subtitle">{scopeLabel}</AppText>
         </View>
+        <View style={styles.scope}>
+          <Icon name="calendar-sync" size={20} color={colors.income} />
+          <AppText variant="label" color="income">
+            {t('budgets.repeatsMonthly')}
+          </AppText>
+        </View>
         <View style={styles.wrap}>
           {currencies.length > 1 ? (
             <Chip
@@ -154,6 +160,9 @@ function BudgetForm({ existing }: { existing: Budget | null }) {
           autoFocus={!existing}
           error={error}
         />
+        <AppText variant="caption" color="textSecondary">
+          {t('budgets.repeatsMonthlyHint')}
+        </AppText>
         {currencies.length > 1 ? (
           <AppText variant="caption" color="textSecondary">
             {t('budgets.currencyNote')}

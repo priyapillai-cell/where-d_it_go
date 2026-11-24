@@ -130,9 +130,12 @@ export function BudgetsScreen() {
       contentContainerStyle={styles.content}
     >
       {data ? (
-        <AppText variant="label" color="textSecondary">
-          {t('budgets.periodLabel', { range: formatPeriod(data.period) })}
-        </AppText>
+        <View style={styles.repeats}>
+          <Icon name="calendar-sync" size={18} color={colors.income} />
+          <AppText variant="label" color="textSecondary">
+            {`${t('budgets.repeatsMonthly')} · ${t('budgets.periodLabel', { range: formatPeriod(data.period) })}`}
+          </AppText>
+        </View>
       ) : null}
 
       {overall.map((item) => (
@@ -176,6 +179,7 @@ export function BudgetsScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { padding: 16, gap: 12, paddingBottom: 48 },
+  repeats: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   card: { borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 10 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 4 },

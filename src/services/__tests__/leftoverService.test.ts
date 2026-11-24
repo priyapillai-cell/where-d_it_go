@@ -60,6 +60,16 @@ describe('loadMainMonthBudget', () => {
     expect(budget?.progress).toMatchObject({ limit: 10000, spent: 2500 });
   });
 
+  it('uses the same monthly amount as the budget for every month', async () => {
+    await saveBudget(db, { categoryId: null, amount: 10000, currency: 'USD' });
+    await spend(1200, day(0, 8));
+    await spend(3400, day(5, 8));
+    const january = await loadMainMonthBudget(db, new Date(2026, 0, 15, 12), settings);
+    const june = await loadMainMonthBudget(db, new Date(2026, 5, 15, 12), settings);
+    expect(january?.progress).toMatchObject({ limit: 10000, spent: 1200 });
+    expect(june?.progress).toMatchObject({ limit: 10000, spent: 3400 });
+  });
+
   it('adds up category budgets when there is no overall budget', async () => {
     await saveBudget(db, { categoryId: 'food', amount: 6000, currency: 'USD' });
     const budget = await loadMainMonthBudget(db, NOW, settings);
