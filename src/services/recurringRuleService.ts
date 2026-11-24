@@ -5,7 +5,15 @@ import {
   insertRecurringRule,
   updateRecurringRule,
 } from '@/db/repositories/recurringRepository';
-import type { SqlDatabase } from '@/db/sqlDatabase';
+import { loadSettings } from '@/db/repositories/settingsRepository';
+import {
+  deleteTransaction,
+  listRuleTransactionsFrom,
+  updateTransaction,
+} from '@/db/repositories/transactionRepository';
+import type { SqlDatabase, SqlExecutor } from '@/db/sqlDatabase';
+import { startOfCustomMonth } from '@/domain/periods';
+import { dueOccurrences, occurrenceKey } from '@/domain/recurrence';
 import {
   type CategoryType,
   err,
@@ -40,14 +48,65 @@ export type RecurringFieldErrors = FieldErrors<
   'amount' | 'accountId' | 'categoryId' | 'interval' | 'startDate' | 'endDate' | 'note'
 >;
 
+function scheduleChanged(a: RecurringRule, b: RecurringRule): boolean {
+  return (
+    a.startDate !== b.startDate ||
+    a.endDate !== b.endDate ||
+    a.frequency !== b.frequency ||
+    a.interval !== b.interval
+  );
+}
+
 /**
- * Creates or updates a rule. Editing keeps the generation watermark, so occurrences that were
- * already recorded are never generated again even when the schedule changes.
+ * Applies an edited rule to what it already recorded from the current budget month on: those
+ * transactions take the new amount, type, account, category and note, and ones no longer on
+ * the schedule are removed. Earlier months stay as history and are not regenerated. Returns the
+ * watermark to keep so the next generation run fills in this month's dates on the new schedule.
+ */
+async function applyEditToGenerated(
+  tx: SqlExecutor,
+  before: RecurringRule,
+  after: RecurringRule,
+  now: Date,
+): Promise<string | null> {
+  const { firstDayOfMonth } = await loadSettings(tx);
+  const monthStart = startOfCustomMonth(now, firstDayOfMonth);
+  const beforeMonth = new Date(monthStart.getTime() - 1).toISOString();
+  const moved = scheduleChanged(before, after);
+  const onSchedule = new Set(
+    dueOccurrences({ ...after, isActive: true, lastGeneratedAt: beforeMonth }, now).map(
+      occurrenceKey,
+    ),
+  );
+  const nowIso = now.toISOString();
+  for (const t of await listRuleTransactionsFrom(tx, after.id, monthStart.toISOString())) {
+    if (moved && (!t.occurrenceKey || !onSchedule.has(t.occurrenceKey))) {
+      await deleteTransaction(tx, t.id);
+      continue;
+    }
+    await updateTransaction(tx, {
+      ...t,
+      type: after.type,
+      amount: after.amount,
+      accountId: after.accountId,
+      categoryId: after.categoryId,
+      note: after.note,
+      updatedAt: nowIso,
+    });
+  }
+  if (!moved || !before.lastGeneratedAt) return before.lastGeneratedAt;
+  return before.lastGeneratedAt < beforeMonth ? before.lastGeneratedAt : beforeMonth;
+}
+
+/**
+ * Creates or updates a rule. Editing updates what the rule recorded this month (see
+ * `applyEditToGenerated`); older months are never generated twice.
  */
 export async function saveRecurringRule(
   db: SqlDatabase,
   input: RecurringRuleInput,
   existingId?: string,
+  now: Date = new Date(),
 ): Promise<Result<RecurringRule, RecurringFieldErrors>> {
   const errors: RecurringFieldErrors = validateRecurringDraft(input);
   if (!input.categoryId) errors.categoryId = 'required';
@@ -83,9 +142,13 @@ export async function saveRecurringRule(
       isActive: input.isActive,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
     };
-    if (existing) await updateRecurringRule(tx, rule);
-    else await insertRecurringRule(tx, rule);
-    return ok(rule);
+    if (!existing) {
+      await insertRecurringRule(tx, rule);
+      return ok(rule);
+    }
+    const saved = { ...rule, lastGeneratedAt: await applyEditToGenerated(tx, existing, rule, now) };
+    await updateRecurringRule(tx, saved);
+    return ok(saved);
   });
 }
 

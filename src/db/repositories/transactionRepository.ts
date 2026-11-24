@@ -64,6 +64,19 @@ export async function deleteTransaction(db: SqlExecutor, id: string): Promise<vo
   await db.run('DELETE FROM transactions WHERE id = ?', [id]);
 }
 
+/** Transactions a recurring rule recorded on or after `fromIso`. */
+export async function listRuleTransactionsFrom(
+  db: SqlExecutor,
+  ruleId: string,
+  fromIso: string,
+): Promise<Transaction[]> {
+  const rows = await db.all<TransactionRow>(
+    `SELECT ${COLUMNS} FROM transactions WHERE recurring_rule_id = ? AND date >= ? ORDER BY date`,
+    [ruleId, fromIso],
+  );
+  return rows.map(toTransaction);
+}
+
 export async function getTransaction(db: SqlExecutor, id: string): Promise<Transaction | null> {
   const row = await db.first<TransactionRow>(`SELECT ${COLUMNS} FROM transactions WHERE id = ?`, [
     id,

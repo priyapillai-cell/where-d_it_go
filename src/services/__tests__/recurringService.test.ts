@@ -128,6 +128,57 @@ describe('saveRecurringRule', () => {
     expect(await listAllTransactions(db)).toHaveLength(3);
   });
 
+  it('updates this month but not earlier months when the amount changes', async () => {
+    const created = await saveRecurringRule(db, input);
+    if (!created.ok) throw new Error('not saved');
+    const now = new Date('2026-03-15T00:00:00.000Z');
+    await generateDueTransactions(db, now);
+    await saveRecurringRule(db, { ...input, amount: 6000, type: 'expense' }, created.value.id, now);
+    const amounts = (await listAllTransactions(db))
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .map((t) => t.amount);
+    expect(amounts).toEqual([5000, 5000, 6000]);
+  });
+
+  it('moves only this month to the new date when the schedule changes', async () => {
+    const created = await saveRecurringRule(db, input);
+    if (!created.ok) throw new Error('not saved');
+    const now = new Date('2026-03-15T00:00:00.000Z');
+    await generateDueTransactions(db, now);
+    await saveRecurringRule(
+      db,
+      { ...input, startDate: '2026-01-05T09:00:00.000Z' },
+      created.value.id,
+      now,
+    );
+    await generateDueTransactions(db, now);
+    const dates = (await listAllTransactions(db)).map((t) => t.date).sort();
+    expect(dates).toEqual([
+      '2026-01-10T09:00:00.000Z',
+      '2026-02-10T09:00:00.000Z',
+      '2026-03-05T09:00:00.000Z',
+    ]);
+  });
+
+  it('records the income right away when a new rule starts today', async () => {
+    const now = new Date('2026-03-15T12:00:00.000Z');
+    const created = await saveRecurringRule(
+      db,
+      { ...input, type: 'income', startDate: '2026-03-15T08:00:00.000Z' },
+      undefined,
+      now,
+    );
+    if (!created.ok) throw new Error('not saved');
+    const [first, second] = await Promise.all([
+      generateDueTransactions(db, now),
+      generateDueTransactions(db, now),
+    ]);
+    expect(first.created + second.created).toBe(1);
+    expect(await listAllTransactions(db)).toEqual([
+      expect.objectContaining({ type: 'income', amount: 5000 }),
+    ]);
+  });
+
   it('deleting a rule keeps its transactions', async () => {
     const created = await saveRecurringRule(db, input);
     if (!created.ok) throw new Error('not saved');

@@ -15,11 +15,12 @@ export interface GenerationResult {
 }
 
 let inFlight: Promise<GenerationResult> | null = null;
+let queued: Promise<GenerationResult> | null = null;
 
 /**
  * Creates every due transaction for every active rule. Safe to call any number of times and
  * concurrently (app open + background task):
- *  - runs are de-duplicated in-process,
+ *  - runs are de-duplicated in-process (callers during a run share one follow-up run),
  *  - each rule is re-read inside its own DB transaction so the watermark is current,
  *  - inserts use a unique (rule, occurrence) index with INSERT OR IGNORE,
  *  - the watermark advances in the same transaction as the inserts.
@@ -32,8 +33,19 @@ export function generateDueTransactions(
     inFlight = run(db, now).finally(() => {
       inFlight = null;
     });
+    return inFlight;
   }
-  return inFlight;
+  // A run already in progress may have read the rules before the caller's change, so callers
+  // arriving now share one follow-up run.
+  if (!queued) {
+    queued = inFlight
+      .catch(() => undefined)
+      .then(() => {
+        queued = null;
+        return generateDueTransactions(db, now);
+      });
+  }
+  return queued;
 }
 
 async function run(db: SqlDatabase, now: Date): Promise<GenerationResult> {
