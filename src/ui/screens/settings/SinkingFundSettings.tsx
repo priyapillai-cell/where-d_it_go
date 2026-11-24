@@ -18,7 +18,7 @@ import { useAppStore } from '@/state/appStore';
 import { logger } from '@/utils/logger';
 
 import { AppText } from '../../components/AppText';
-import { Card, CheckboxRow, ListRow, SectionTitle } from '../../components/FormField';
+import { Card, ListRow, SectionTitle } from '../../components/FormField';
 import { type SelectOption, SelectSheet } from '../../components/SelectSheet';
 import { useDbQuery } from '../../hooks/useDbQuery';
 
@@ -204,11 +204,6 @@ export function SinkingFundSettings() {
           label={t('settings.fundLeftover')}
           value={fundLeftoverLabel(settings.fundLeftover)}
           onPress={() => setSheet('fundLeftover')}
-        />
-        <CheckboxRow
-          label={t('settings.showFundsOnOverview')}
-          value={settings.showFundsOnOverview}
-          onValueChange={(showFundsOnOverview) => save({ showFundsOnOverview })}
         />
       </Card>
       <AppText variant="caption" color="textSecondary" style={styles.hint}>

@@ -138,7 +138,6 @@ export const settingsSchema = z.object({
   budgetLeftoverLastMonth: monthKey.nullable().default(null),
   fundLeftover: z.enum(['keep', 'nextMonth']).default('keep'),
   fundLeftoverSince: monthKey.nullable().default(null),
-  showFundsOnOverview: z.boolean().default(false),
 }) satisfies z.ZodType<Settings>;
 
 export const backupSchema = z.object({

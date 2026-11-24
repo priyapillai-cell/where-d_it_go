@@ -339,7 +339,6 @@ export const en = {
       "What you don't spend from the sinking fund budget simply stays saved in the fund.",
     fundLeftoverHintNextMonth:
       "What you don't spend from the sinking fund budget is added to next month's sinking fund budget.",
-    showFundsOnOverview: 'Include sinking fund spending in the Overview chart',
     title: 'Settings',
     general: 'General',
     defaultCurrency: 'Default currency',

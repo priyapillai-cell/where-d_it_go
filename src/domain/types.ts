@@ -162,7 +162,6 @@ export interface Settings {
   budgetLeftoverLastMonth: string | null;
   fundLeftover: FundLeftoverMode;
   fundLeftoverSince: string | null;
-  showFundsOnOverview: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -181,7 +180,6 @@ export const DEFAULT_SETTINGS: Settings = {
   budgetLeftoverLastMonth: null,
   fundLeftover: 'keep',
   fundLeftoverSince: null,
-  showFundsOnOverview: false,
 };
 
 export type Result<T, E = string> = { ok: true; value: T } | { ok: false; error: E };

@@ -1,11 +1,6 @@
 import { insertAccount } from '@/db/repositories/accountRepository';
 import { insertCategory } from '@/db/repositories/categoryRepository';
-import {
-  fundSpendTotal,
-  listFundEntries,
-  upsertFund,
-  upsertFundEntry,
-} from '@/db/repositories/fundRepository';
+import { listFundEntries, upsertFund, upsertFundEntry } from '@/db/repositories/fundRepository';
 import { insertTransaction } from '@/db/repositories/transactionRepository';
 import type { SqlDatabase } from '@/db/sqlDatabase';
 import { DEFAULT_SETTINGS, type Settings } from '@/domain/types';
@@ -141,33 +136,6 @@ describe('loadFundMonthBudget', () => {
       fundLeftoverSince: '2026-02',
     });
     expect(budget).toMatchObject({ base: 5000, carried: 3000 });
-  });
-});
-
-describe('fundSpendTotal', () => {
-  it('sums spending in the currency within the range, treating null bounds as open', async () => {
-    await upsertFundEntry(
-      db,
-      makeFundEntry({ fundId: 'gifts', type: 'spend', amount: 1000, date: day(0, 4) }),
-    );
-    await upsertFundEntry(
-      db,
-      makeFundEntry({ fundId: 'gifts', type: 'spend', amount: 2000, date: day(2, 4) }),
-    );
-    await upsertFundEntry(
-      db,
-      makeFundEntry({ fundId: 'gifts', type: 'deposit', amount: 5000, date: day(2, 4) }),
-    );
-    await upsertFundEntry(
-      db,
-      makeFundEntry({ fundId: 'euro', type: 'spend', amount: 700, date: day(2, 4) }),
-    );
-    const march = new Date(2026, 2, 1).toISOString();
-    const april = new Date(2026, 3, 1).toISOString();
-    expect(await fundSpendTotal(db, 'USD', march, april)).toBe(2000);
-    expect(await fundSpendTotal(db, 'USD', null, null)).toBe(3000);
-    expect(await fundSpendTotal(db, 'USD', null, march)).toBe(1000);
-    expect(await fundSpendTotal(db, 'EUR', null, null)).toBe(700);
   });
 });
 

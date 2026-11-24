@@ -134,19 +134,18 @@ export async function insertFundEntryIfAbsent(db: SqlExecutor, e: FundEntry): Pr
   return result.changes > 0;
 }
 
-/** Spending from funds in `currency` with `fromIso <= date < toIso`; a null bound is open. */
+/** Spending from funds in `currency` with `fromIso <= date < toIso`. */
 export async function fundSpendTotal(
   db: SqlExecutor,
   currency: string,
-  fromIso: string | null,
-  toIso: string | null,
+  fromIso: string,
+  toIso: string,
 ): Promise<number> {
   const row = await db.first<{ total: number | null }>(
     `SELECT SUM(e.amount) AS total FROM fund_entries e
      JOIN sinking_funds f ON f.id = e.fund_id
-     WHERE e.type = 'spend' AND f.currency = ?
-       AND (? IS NULL OR e.date >= ?) AND (? IS NULL OR e.date < ?)`,
-    [currency, fromIso, fromIso, toIso, toIso],
+     WHERE e.type = 'spend' AND f.currency = ? AND e.date >= ? AND e.date < ?`,
+    [currency, fromIso, toIso],
   );
   return row?.total ?? 0;
 }

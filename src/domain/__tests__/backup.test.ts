@@ -93,7 +93,6 @@ it('fills in sinking fund settings missing from older backups', () => {
     fundBudget: _b,
     budgetLeftover: _l,
     fundLeftover: _f,
-    showFundsOnOverview: _s,
     ...oldSettings
   } = backup.data.settings;
   const parsed = parseBackup(
@@ -104,7 +103,6 @@ it('fills in sinking fund settings missing from older backups', () => {
       fundBudget: null,
       budgetLeftover: 'none',
       fundLeftover: 'keep',
-      showFundsOnOverview: false,
     }),
   );
 });
@@ -123,7 +121,6 @@ it('round-trips sinking fund budget and leftover settings', () => {
       budgetLeftoverLastMonth: '2026-11',
       fundLeftover: 'nextMonth',
       fundLeftoverSince: '2026-10',
-      showFundsOnOverview: true,
     },
   };
   const backup = createBackup(data, new Date('2026-11-21T00:00:00.000Z'));

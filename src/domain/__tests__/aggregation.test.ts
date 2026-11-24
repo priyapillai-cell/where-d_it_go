@@ -8,7 +8,6 @@ import {
   incomeExpenseSeries,
   sumByType,
   suggestGranularity,
-  withFundSlice,
 } from '../aggregation';
 
 const opts = { firstDayOfWeek: 1 as const, firstDayOfMonth: 1 };
@@ -156,39 +155,4 @@ it('suggests granularity by span', () => {
   expect(suggestGranularity(new Date(2026, 0, 1), new Date(2026, 0, 31))).toBe('day');
   expect(suggestGranularity(new Date(2026, 0, 1), new Date(2026, 3, 1))).toBe('week');
   expect(suggestGranularity(new Date(2026, 0, 1), new Date(2027, 0, 1))).toBe('month');
-});
-
-describe('withFundSlice', () => {
-  const breakdown = [
-    { categoryId: 'food', total: 6000, count: 2, share: 0.75 },
-    { categoryId: null, total: 2000, count: 1, share: 0.25 },
-  ];
-
-  it('adds the sinking fund as a slice and recomputes shares over the combined total', () => {
-    const { slices, total } = withFundSlice(breakdown, 2000);
-    expect(total).toBe(10000);
-    expect(slices).toEqual([
-      { kind: 'category', categoryId: 'food', total: 6000, share: 0.6 },
-      { kind: 'category', categoryId: null, total: 2000, share: 0.2 },
-      { kind: 'fund', total: 2000, share: 0.2 },
-    ]);
-  });
-
-  it('sorts the fund slice by size', () => {
-    expect(withFundSlice(breakdown, 9000).slices[0]).toEqual({
-      kind: 'fund',
-      total: 9000,
-      share: 9000 / 17000,
-    });
-  });
-
-  it('adds no slice when nothing was spent from the fund', () => {
-    const { slices, total } = withFundSlice(breakdown, 0);
-    expect(total).toBe(8000);
-    expect(slices.map((s) => s.kind)).toEqual(['category', 'category']);
-  });
-
-  it('handles a period with no spending at all', () => {
-    expect(withFundSlice([], 0)).toEqual({ slices: [], total: 0 });
-  });
 });
