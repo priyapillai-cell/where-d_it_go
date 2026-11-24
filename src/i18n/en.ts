@@ -378,6 +378,7 @@ export const en = {
     googleDrive: 'Google Drive',
     googleDriveOn: 'On',
     googleDriveOff: 'Off',
+    googleDriveUnavailable: 'Not available',
     deleteAll: 'Delete all data',
     deleteAllConfirm1: 'Delete all data?',
     deleteAllConfirm1Body:

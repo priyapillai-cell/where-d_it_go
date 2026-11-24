@@ -18,6 +18,7 @@ import { accountsSwitchableTo, switchAccountsCurrency } from '@/services/account
 import { exportBackupJson, exportCsv, exportExcel, resetAllData } from '@/services/dataService';
 import { type ExportKind, shareExport } from '@/services/fileService';
 import { driveSync } from '@/services/google/driveSyncInstance';
+import { currentGoogleAvailability } from '@/services/google/googleSignIn';
 import { cancelAllNotifications } from '@/services/notificationService';
 import { biometricsAvailable, clearPasscode } from '@/services/securityService';
 import { write } from '@/services/writes';
@@ -86,6 +87,7 @@ export function SettingsScreen() {
   const [busy, setBusy] = useState(false);
   const restore = useRestoreFromFile();
   const driveOn = useSyncStore((s) => s.status !== 'off');
+  const driveAvailable = currentGoogleAvailability().kind === 'available';
 
   useEffect(() => {
     let active = true;
@@ -366,7 +368,14 @@ export function SettingsScreen() {
         <ListRow
           icon="google-drive"
           label={t('settings.googleDrive')}
-          value={driveOn ? t('settings.googleDriveOn') : t('settings.googleDriveOff')}
+          value={
+            !driveAvailable
+              ? t('settings.googleDriveUnavailable')
+              : driveOn
+                ? t('settings.googleDriveOn')
+                : t('settings.googleDriveOff')
+          }
+          dimmed={!driveAvailable}
           onPress={() => router.push('/drive')}
         />
         <ListRow

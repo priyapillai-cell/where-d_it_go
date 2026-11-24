@@ -74,7 +74,7 @@ export function SwitchRow({
 }) {
   const { colors } = useTheme();
   return (
-    <View style={styles.switchRow}>
+    <View style={[styles.switchRow, disabled ? styles.dimmed : null]}>
       <View style={styles.flex}>
         <AppText variant="body">{label}</AppText>
         {hint ? (
@@ -137,6 +137,7 @@ export function ListRow({
   destructive,
   leading,
   accessibilityHint,
+  dimmed,
 }: {
   label: string;
   value?: string;
@@ -145,6 +146,8 @@ export function ListRow({
   destructive?: boolean;
   leading?: ReactNode;
   accessibilityHint?: string;
+  /** Faded to show the feature does not work here; still tappable so it can explain why. */
+  dimmed?: boolean;
 }) {
   const { colors } = useTheme();
   return (
@@ -156,6 +159,7 @@ export function ListRow({
       disabled={!onPress}
       style={({ pressed }) => [
         styles.row,
+        dimmed ? styles.dimmed : null,
         { backgroundColor: pressed ? colors.surfaceVariant : 'transparent' },
       ]}
     >
@@ -222,6 +226,7 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   value: { maxWidth: '45%' },
+  dimmed: { opacity: 0.4 },
   card: { borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   sectionTitle: { marginTop: 24, marginBottom: 8, marginHorizontal: 16, letterSpacing: 0.6 },
 });
