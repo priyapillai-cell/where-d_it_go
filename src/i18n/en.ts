@@ -373,6 +373,8 @@ export const en = {
     exportJson: 'Export everything (JSON)',
     importCsv: 'Import from CSV',
     restoreBackup: 'Restore from backup (JSON)',
+    importBudgetNote:
+      'Set up your monthly budget and sinking fund budget before importing from CSV, because a CSV file does not include budgets. Restoring a JSON backup brings back its budgets along with everything else.',
     googleDrive: 'Google Drive',
     googleDriveOn: 'On',
     googleDriveOff: 'Off',

@@ -376,6 +376,9 @@ export function SettingsScreen() {
           onPress={confirmDeleteAll}
         />
       </Card>
+      <AppText variant="caption" color="textSecondary" style={styles.hint}>
+        {t('settings.importBudgetNote')}
+      </AppText>
 
       <SectionTitle>{t('settings.about')}</SectionTitle>
       <Card style={styles.about}>
