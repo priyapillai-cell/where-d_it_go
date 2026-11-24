@@ -2,7 +2,7 @@
   "expo": {
     "name": "Where'd It Go?",
     "slug": "pocket-ledger",
-    "scheme": "pocketledger",
+    "scheme": ["whereditgo", "pocketledger"],
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

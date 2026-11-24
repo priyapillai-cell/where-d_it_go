@@ -157,6 +157,11 @@ export function HomeScreen() {
           <Logo height={30} style={styles.logo} />
         </View>
         <IconButton
+          icon="message-text-outline"
+          label={t('fromMessage.open')}
+          onPress={() => router.push('/from-message')}
+        />
+        <IconButton
           icon="filter-variant"
           label={t('periods.choosePeriodA11y', { period: t(`periods.${period.kind}`) })}
           onPress={() => setPeriodMenu(true)}

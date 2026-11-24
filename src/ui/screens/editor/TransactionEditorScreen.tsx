@@ -38,10 +38,24 @@ import { Keypad } from '../../components/Keypad';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { useTheme } from '../../theme/ThemeProvider';
 
-type Params = { id?: string; type?: string; categoryId?: string; accountId?: string };
+type Params = {
+  id?: string;
+  type?: string;
+  categoryId?: string;
+  accountId?: string;
+  /** Prefill for a new transaction: amount in minor units, ISO date and note. */
+  amount?: string;
+  date?: string;
+  note?: string;
+};
 
 function parseType(value: string | undefined): CategoryType {
   return value === 'income' ? 'income' : 'expense';
+}
+
+function parseDateParam(value: string | undefined): Date {
+  const date = value ? new Date(value) : new Date(NaN);
+  return Number.isNaN(date.getTime()) ? new Date() : date;
 }
 
 export function TransactionEditorScreen() {
@@ -54,13 +68,19 @@ export function TransactionEditorScreen() {
 
   const [existing, setExisting] = useState<Transaction | null>(null);
   const [type, setType] = useState<CategoryType>(parseType(params.type));
-  const [expression, setExpression] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(params.categoryId ?? null);
   const [accountId, setAccountId] = useState<string | null>(
     params.accountId ?? accounts[0]?.id ?? null,
   );
-  const [date, setDate] = useState(() => new Date());
-  const [note, setNote] = useState('');
+  const [expression, setExpression] = useState(() => {
+    const minor = Number(params.amount);
+    if (!params.amount || !Number.isSafeInteger(minor) || minor <= 0) return '';
+    const initial = allAccounts.find((a) => a.id === accountId);
+    const initialCurrency = initial?.currency ?? useAppStore.getState().settings.defaultCurrency;
+    return expressionFromMinor(minor, currencyFractionDigits(initialCurrency));
+  });
+  const [date, setDate] = useState(() => parseDateParam(params.date));
+  const [note, setNote] = useState(() => (params.note ?? '').slice(0, MAX_NOTE_LENGTH));
   const [sheet, setSheet] = useState<'none' | 'account' | 'date'>('none');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | undefined>();
