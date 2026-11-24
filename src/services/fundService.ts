@@ -222,6 +222,7 @@ export interface FundsDashboard extends FundsOverview {
   currency: string;
   spentInPeriod: Map<string, MinorUnits>;
   addedInPeriod: Map<string, MinorUnits>;
+  /** The sinking fund budget of the period's month; `null` for other periods or when unset. */
   budget: MonthBudgetState | null;
   /** All categories in `currency` combined, last six months. */
   history: FundMonth[];
@@ -244,7 +245,10 @@ export async function loadFundsDashboard(
     currency,
     spentInPeriod: totalsByFund(entries, 'spend', from, to),
     addedInPeriod: totalsByFund(entries, 'deposit', from, to),
-    budget: await loadFundMonthBudget(db, now, settings),
+    budget:
+      period.kind === 'month' && period.start
+        ? await loadFundMonthBudget(db, period.start, settings)
+        : null,
     history: fundMonthlyHistory(
       entries.filter((e) => inCurrency.has(e.fundId)),
       now,

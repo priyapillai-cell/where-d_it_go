@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { parseCalendarDay } from '@/domain/sinkingFunds';
 import type { FundEntryType, SinkingFund } from '@/domain/types';
 import { t } from '@/i18n';
-import { formatDate, formatPercent, formatPeriod, money } from '@/i18n/format';
+import { formatDate, formatPercent, money } from '@/i18n/format';
 import { type FundOverviewItem, loadFundsDashboard } from '@/services/fundService';
 import { useAppStore } from '@/state/appStore';
 import { useFundsStore } from '@/state/homeStore';
@@ -22,9 +22,7 @@ import { ProgressBar } from '../../components/ProgressBar';
 import { EmptyState, ListSkeleton } from '../../components/States';
 import { useDbQuery } from '../../hooks/useDbQuery';
 import { useTheme } from '../../theme/ThemeProvider';
-import { BudgetSummaryCard } from '../budgets/BudgetSummaryCard';
 import { CategoryGrid, CategoryRing, MAX_RING_ITEMS, RING_ICON } from '../home/CategoryRing';
-import { FundHistoryChart } from './FundHistoryChart';
 import { FUND_PRESETS, type FundPreset, presetName } from './fundPresets';
 import { fundStatusPresentation } from './fundStatus';
 
@@ -245,6 +243,18 @@ export function FundsScreen() {
   const periodTotal = inCurrency.reduce((sum, i) => sum + i.total, 0);
   const typeColor = entryType === 'spend' ? colors.expense : colors.income;
   const centerLabel = entryType === 'spend' ? t('funds.spentInPeriod') : t('funds.addedInPeriod');
+  const budget = entryType === 'spend' ? (data?.budget ?? null) : null;
+  const centerA11y = [
+    `${centerLabel} ${money(periodTotal, currency)}`,
+    budget ? t('home.budgetA11y', { limit: money(budget.progress.limit, currency) }) : null,
+    budget
+      ? budget.progress.remaining >= 0
+        ? t('budgets.remaining', { amount: money(budget.progress.remaining, currency) })
+        : t('budgets.over', { amount: money(-budget.progress.remaining, currency) })
+      : null,
+  ]
+    .filter(Boolean)
+    .join('. ');
 
   const chartSize = Math.min(width - 16, MAX_CHART);
   const donutSize = chartSize - 2 * RING_ICON - 24;
@@ -261,31 +271,6 @@ export function FundsScreen() {
         kindMenu={{ visible: periodMenu, onClose: () => setPeriodMenu(false) }}
       />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 120 + insets.bottom }]}>
-        {data?.budget ? (
-          <BudgetSummaryCard
-            inset={false}
-            title={t('funds.budgetFor', { month: formatPeriod(data.budget.period) })}
-            icon="wallet-outline"
-            budget={data.budget}
-            currency={currency}
-            hint={t('funds.budgetEdit')}
-            onPress={() => router.push('/fund-budget')}
-          />
-        ) : null}
-
-        {data && data.totals.length > 0 ? (
-          <Card style={styles.totals}>
-            <AppText variant="label" color="textSecondary">
-              {t('funds.totalSaved')}
-            </AppText>
-            {data.totals.map((total) => (
-              <AppText key={total.currency} variant="headline" tabular>
-                {money(total.balance, total.currency)}
-              </AppText>
-            ))}
-          </Card>
-        ) : null}
-
         {active.length === 0 ? (
           <EmptyState
             icon="piggy-bank-outline"
@@ -314,14 +299,11 @@ export function FundsScreen() {
                 >
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`${centerLabel} ${money(periodTotal, currency)}`}
+                    accessibilityLabel={centerA11y}
                     accessibilityHint={t('funds.toggleHint')}
                     onPress={toggleEntryType}
                     style={[styles.center, { width: donutSize * 0.7, height: donutSize * 0.7 }]}
                   >
-                    <AppText variant="label" color="textSecondary">
-                      {centerLabel}
-                    </AppText>
                     <AppText
                       variant="headline"
                       tabular
@@ -331,6 +313,17 @@ export function FundsScreen() {
                     >
                       {money(periodTotal, currency)}
                     </AppText>
+                    {budget ? (
+                      <AppText
+                        variant="title"
+                        tabular
+                        numberOfLines={1}
+                        adjustsFontSizeToFit
+                        style={{ color: colors.income }}
+                      >
+                        {money(budget.progress.limit, currency)}
+                      </AppText>
+                    ) : null}
                     <Icon name="swap-horizontal" size={18} color={colors.textSecondary} />
                   </Pressable>
                 </DonutChart>
@@ -353,19 +346,6 @@ export function FundsScreen() {
               <AppText color="textSecondary" align="center">
                 {entryType === 'spend' ? t('funds.emptyPeriodSpent') : t('funds.emptyPeriodAdded')}
               </AppText>
-            ) : null}
-
-            {data && data.history.some((m) => m.added > 0 || m.spent > 0) ? (
-              <Card style={styles.chartCard}>
-                <AppText variant="subtitle" accessibilityRole="header">
-                  {t('funds.chartTitle')}
-                </AppText>
-                <FundHistoryChart
-                  history={data.history}
-                  currency={currency}
-                  width={Math.max(200, Math.min(width, MAX_CHART) - 64)}
-                />
-              </Card>
             ) : null}
 
             <SectionTitle>{t('funds.categories')}</SectionTitle>
@@ -404,14 +384,6 @@ export function FundsScreen() {
           style={styles.flex}
           onPress={() => openEntry('spend')}
         />
-        <Button
-          label={`+ ${t('funds.addFunds')}`}
-          accessibilityLabel={t('funds.addFundsA11y')}
-          tint={colors.income}
-          size="large"
-          style={styles.flex}
-          onPress={() => openEntry('deposit')}
-        />
       </View>
     </View>
   );
@@ -422,9 +394,7 @@ const styles = StyleSheet.create({
   content: { padding: 16, gap: 12, paddingBottom: 48 },
   card: { borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 10 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  totals: { padding: 16, gap: 2 },
   required: { padding: 20, gap: 12, alignItems: 'center' },
-  chartCard: { padding: 16, gap: 10 },
   chartArea: { position: 'relative', alignSelf: 'center' },
   donut: { position: 'absolute' },
   center: { alignItems: 'center', justifyContent: 'center', gap: 2, borderRadius: 999 },

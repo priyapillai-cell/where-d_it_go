@@ -205,4 +205,7 @@ it('loads the sinking fund dashboard for a period in the default currency', asyn
 
   const noBudget = await loadFundsDashboard(db, period, { ...settings, fundBudget: null }, NOW);
   expect(noBudget.budget).toBeNull();
+
+  const year = periodContaining('year', NOW, { firstDayOfWeek: 1, firstDayOfMonth: 1 });
+  expect((await loadFundsDashboard(db, year, settings, NOW)).budget).toBeNull();
 });
