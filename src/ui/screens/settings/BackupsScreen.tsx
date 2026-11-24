@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 
 import { getDatabase } from '@/db/database';
 import { type BackupFile, MAX_BACKUP_BYTES, parseBackup } from '@/domain/backup';
@@ -130,7 +130,7 @@ export function BackupsScreen() {
       <ModalHeader title={t('backups.title')} onClose={() => router.back()} />
       <ScrollView contentContainerStyle={styles.content}>
         <AppText variant="caption" color="textSecondary">
-          {t('backups.hint')}
+          {Platform.OS === 'web' ? t('backups.hintWeb') : t('backups.hint')}
         </AppText>
         <View style={styles.actions}>
           <Button

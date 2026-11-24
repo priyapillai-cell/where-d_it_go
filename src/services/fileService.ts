@@ -5,35 +5,25 @@ import * as Sharing from 'expo-sharing';
 import { err, ok, type Result } from '@/domain/types';
 import { logger } from '@/utils/logger';
 
-export interface StoredFile {
-  name: string;
-  uri: string;
-  size: number;
-  modifiedAt: Date | null;
-}
+import {
+  backupFileName,
+  backupTimestamp,
+  EXPORT_TYPES,
+  type ExportKind,
+  type PickedText,
+  type ReadError,
+  type StoredFile,
+} from './fileTypes';
+
+export type { ExportKind, PickedText, ReadError, StoredFile };
 
 const BACKUP_DIR = 'backups';
-
-function timestamp(now: Date): string {
-  return now.toISOString().slice(0, 19).replace(/[:T]/g, '-');
-}
 
 function backupDirectory(): Directory {
   const dir = new Directory(Paths.document, BACKUP_DIR);
   if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
   return dir;
 }
-
-export type ExportKind = 'csv' | 'json' | 'xlsx';
-
-const EXPORT_TYPES: Record<ExportKind, { mimeType: string; UTI: string }> = {
-  csv: { mimeType: 'text/csv', UTI: 'public.comma-separated-values-text' },
-  json: { mimeType: 'application/json', UTI: 'public.json' },
-  xlsx: {
-    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    UTI: 'org.openxmlformats.spreadsheetml.sheet',
-  },
-};
 
 async function writeFile(
   dir: Directory,
@@ -58,7 +48,7 @@ export async function shareExport(
     if (!(await Sharing.isAvailableAsync())) return err('unavailable');
     const file = await writeFile(
       Paths.cache,
-      `${baseName}-${timestamp(now)}.${extension}`,
+      `${baseName}-${backupTimestamp(now)}.${extension}`,
       contents,
     );
     await Sharing.shareAsync(file.uri, EXPORT_TYPES[extension]);
@@ -84,7 +74,7 @@ export async function saveBackupFile(
   contents: string,
   now: Date = new Date(),
 ): Promise<StoredFile> {
-  const file = await writeFile(backupDirectory(), `pocket-ledger-${timestamp(now)}.json`, contents);
+  const file = await writeFile(backupDirectory(), backupFileName(now), contents);
   return { name: file.name, uri: file.uri, size: file.size, modifiedAt: now };
 }
 
@@ -111,8 +101,6 @@ export function deleteStoredFile(uri: string): void {
   if (file.exists) file.delete();
 }
 
-export type ReadError = 'canceled' | 'tooLarge' | 'readFailed';
-
 /** Reads a text file, refusing anything larger than `maxBytes` before loading it. */
 export async function readTextFile(
   uri: string,
@@ -126,11 +114,6 @@ export async function readTextFile(
     logger.warn('Reading file failed', error);
     return err('readFailed');
   }
-}
-
-export interface PickedText {
-  name: string;
-  text: string;
 }
 
 /** Lets the user pick a document and reads it as text. */

@@ -475,6 +475,8 @@ export const en = {
     invalid: 'This file is not a valid backup',
     deleteConfirm: 'Delete this backup file?',
     hint: 'Backups are stored on this device. Share them to keep a copy elsewhere.',
+    hintWeb:
+      'Each backup is downloaded to your computer and also kept in this browser. Clearing site data removes the browser copy, so keep the downloaded file.',
     size: '{{size}} KB',
   },
   currencies: {
