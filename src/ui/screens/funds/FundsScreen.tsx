@@ -243,7 +243,7 @@ export function FundsScreen() {
   const periodTotal = inCurrency.reduce((sum, i) => sum + i.total, 0);
   const typeColor = entryType === 'spend' ? colors.expense : colors.income;
   const centerLabel = entryType === 'spend' ? t('funds.spentInPeriod') : t('funds.addedInPeriod');
-  const budget = entryType === 'spend' ? (data?.budget ?? null) : null;
+  const budget = data?.budget ?? null;
   const centerA11y = [
     `${centerLabel} ${money(periodTotal, currency)}`,
     budget ? t('home.budgetA11y', { limit: money(budget.progress.limit, currency) }) : null,
@@ -271,6 +271,67 @@ export function FundsScreen() {
         kindMenu={{ visible: periodMenu, onClose: () => setPeriodMenu(false) }}
       />
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 120 + insets.bottom }]}>
+        <View style={[styles.chartArea, { width: chartSize, height: chartSize }]}>
+          <View
+            style={[
+              styles.donut,
+              { top: (chartSize - donutSize) / 2, left: (chartSize - donutSize) / 2 },
+            ]}
+          >
+            <DonutChart
+              segments={inCurrency.map((i) => ({
+                key: i.category.id,
+                value: i.total,
+                color: i.category.color,
+              }))}
+              size={donutSize}
+              thickness={Math.max(18, donutSize * 0.1)}
+            >
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={centerA11y}
+                accessibilityHint={t('funds.toggleHint')}
+                onPress={toggleEntryType}
+                style={[styles.center, { width: donutSize * 0.7, height: donutSize * 0.7 }]}
+              >
+                <AppText
+                  variant="headline"
+                  tabular
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={{ color: typeColor }}
+                >
+                  {money(periodTotal, currency)}
+                </AppText>
+                {budget ? (
+                  <AppText
+                    variant="title"
+                    tabular
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    style={{ color: colors.income }}
+                  >
+                    {money(budget.progress.limit, currency)}
+                  </AppText>
+                ) : null}
+                <Icon name="swap-horizontal" size={18} color={colors.textSecondary} />
+              </Pressable>
+            </DonutChart>
+          </View>
+          <CategoryRing
+            items={ring}
+            size={chartSize}
+            currency={currency}
+            onPress={(fund) => openEntry(entryType, fund)}
+          />
+        </View>
+        {overflow.length > 0 ? (
+          <CategoryGrid
+            items={overflow}
+            currency={currency}
+            onPress={(fund) => openEntry(entryType, fund)}
+          />
+        ) : null}
         {active.length === 0 ? (
           <EmptyState
             icon="piggy-bank-outline"
@@ -281,67 +342,6 @@ export function FundsScreen() {
           />
         ) : (
           <>
-            <View style={[styles.chartArea, { width: chartSize, height: chartSize }]}>
-              <View
-                style={[
-                  styles.donut,
-                  { top: (chartSize - donutSize) / 2, left: (chartSize - donutSize) / 2 },
-                ]}
-              >
-                <DonutChart
-                  segments={inCurrency.map((i) => ({
-                    key: i.category.id,
-                    value: i.total,
-                    color: i.category.color,
-                  }))}
-                  size={donutSize}
-                  thickness={Math.max(18, donutSize * 0.1)}
-                >
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={centerA11y}
-                    accessibilityHint={t('funds.toggleHint')}
-                    onPress={toggleEntryType}
-                    style={[styles.center, { width: donutSize * 0.7, height: donutSize * 0.7 }]}
-                  >
-                    <AppText
-                      variant="headline"
-                      tabular
-                      numberOfLines={1}
-                      adjustsFontSizeToFit
-                      style={{ color: typeColor }}
-                    >
-                      {money(periodTotal, currency)}
-                    </AppText>
-                    {budget ? (
-                      <AppText
-                        variant="title"
-                        tabular
-                        numberOfLines={1}
-                        adjustsFontSizeToFit
-                        style={{ color: colors.income }}
-                      >
-                        {money(budget.progress.limit, currency)}
-                      </AppText>
-                    ) : null}
-                    <Icon name="swap-horizontal" size={18} color={colors.textSecondary} />
-                  </Pressable>
-                </DonutChart>
-              </View>
-              <CategoryRing
-                items={ring}
-                size={chartSize}
-                currency={currency}
-                onPress={(fund) => openEntry(entryType, fund)}
-              />
-            </View>
-            {overflow.length > 0 ? (
-              <CategoryGrid
-                items={overflow}
-                currency={currency}
-                onPress={(fund) => openEntry(entryType, fund)}
-              />
-            ) : null}
             {periodTotal === 0 ? (
               <AppText color="textSecondary" align="center">
                 {entryType === 'spend' ? t('funds.emptyPeriodSpent') : t('funds.emptyPeriodAdded')}
