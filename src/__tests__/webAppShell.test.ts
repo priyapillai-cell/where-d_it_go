@@ -20,13 +20,16 @@ describe('web app shell', () => {
   });
 
   it('gives Add to Home Screen the app icon and name', () => {
-    expect(html).toContain('rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png"');
+    expect(html).toContain(
+      'rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=2"',
+    );
     expect(html).toContain('name="apple-mobile-web-app-title" content="Where\'d It Go?"');
     expect(pngSize('apple-touch-icon.png')).toEqual({ width: 180, height: 180 });
+    expect(pngSize('apple-touch-icon-precomposed.png')).toEqual({ width: 180, height: 180 });
   });
 
   it('lists manifest icons that exist at their declared sizes', () => {
-    expect(html).toContain('rel="manifest" href="/manifest.json"');
+    expect(html).toContain('rel="manifest" href="/manifest.json?v=2"');
     const manifest = JSON.parse(readFileSync(join(publicDir, 'manifest.json'), 'utf8')) as {
       display: string;
       icons: { src: string; sizes: string }[];
@@ -35,7 +38,7 @@ describe('web app shell', () => {
     expect(manifest.icons.length).toBeGreaterThan(0);
     for (const icon of manifest.icons) {
       const [width, height] = icon.sizes.split('x').map(Number);
-      expect(pngSize(icon.src.replace(/^\//, ''))).toEqual({ width, height });
+      expect(pngSize(icon.src.replace(/^\//, '').replace(/\?.*$/, ''))).toEqual({ width, height });
     }
   });
 });
