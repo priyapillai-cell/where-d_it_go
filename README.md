@@ -235,23 +235,6 @@ categories:
 - **JSON backups** contain all data and are validated with a schema (including referential
   integrity) before anything is replaced.
 
-## Bank messages
-
-iOS does not let apps read text messages, so transactions come in two ways:
-
-- **Paste:** the message icon on the Overview (and on Transactions) opens "Add from bank message".
-  `src/domain/bankMessage.ts` reads the amount and currency (`INR`, `Rs.`, `₹`, `$`, `€`, …,
-  skipping balances and limits), debit or credit, the merchant (a UPI ID is cut at the `@`), a
-  day-first date and the account or card digits, and suggests a default category from the
-  merchant (Swiggy → Eating out, Uber → Transport, …). OTPs, reminders, requests and declined
-  payments are ignored. "Check and save" opens the normal editor, filled in; nothing is saved
-  until you tap Save. Messages are read on the device only.
-- **iPhone Shortcuts:** a personal automation ("When I get a message containing debited", Run
-  Immediately) can URL-encode the message and open
-  `whereditgo://from-message?text=<encoded message>`, which goes straight to the filled-in editor.
-  The steps are listed on the "Add from bank message" screen. The `whereditgo` scheme is new, so
-  it needs a fresh development build; `pocketledger://` keeps working.
-
 ## Known limitations
 
 - Only English strings ship today, although all text goes through `src/i18n` and formatting

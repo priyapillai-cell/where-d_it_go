@@ -411,32 +411,6 @@ export const en = {
     entered: '{{count}} of 4 digits entered',
     currentPasscode: 'Enter your current passcode',
   },
-  fromMessage: {
-    title: 'Add from bank message',
-    open: 'Add from bank message',
-    hint: 'Paste a bank, card or UPI text message. The amount, merchant and date are read on this device and filled in for you to check before saving.',
-    placeholder: 'e.g. INR 450.00 spent on Card XX1234 at SWIGGY on 24-11-26',
-    inputLabel: 'Bank message',
-    found: 'Found in the message',
-    noCategory: 'Choose a category next',
-    notFound:
-      'No transaction found in this message. It needs an amount and a word such as debited, spent, paid, sent or credited. One-time passwords, reminders and declined payments are skipped.',
-    currencyMismatch: 'You have no account in {{currency}}, so it will be added to {{account}}.',
-    continue: 'Check and save',
-    shortcutTitle: 'Add automatically on iPhone',
-    shortcutIntro:
-      'iPhone apps cannot read your messages, but the Shortcuts app can send new bank messages here. Set it up once:',
-    step1: 'Open Shortcuts, tap Automation, then the + button and choose Message.',
-    step2:
-      'Under "Message Contains" type debited (make a second automation for credited). Optionally pick your bank under Sender.',
-    step3: 'Choose "Run Immediately", tap Next, then "New Blank Automation".',
-    step4: 'Add the action "URL Encode" and set its input to Shortcut Input.',
-    step5:
-      'Add the action "Text", type whereditgo://from-message?text= and insert the "URL Encoded Text" variable right after it.',
-    step6: 'Add the action "Open URLs" and tap Done.',
-    shortcutNote:
-      'Each matching message then opens this app with a filled-in entry to check and save. This needs the app installed on your iPhone; it does not work in the browser preview.',
-  },
   importCsv: {
     title: 'Import CSV',
     pickFile: 'Choose CSV file',

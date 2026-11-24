@@ -64,18 +64,11 @@ export function TransactionsScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <View style={styles.headerActions}>
-          <IconButton
-            icon="message-text-outline"
-            label={t('fromMessage.open')}
-            onPress={() => router.push('/from-message')}
-          />
-          <IconButton
-            icon="plus"
-            label={t('home.addExpenseA11y')}
-            onPress={() => router.push({ pathname: '/transaction', params: { type: 'expense' } })}
-          />
-        </View>
+        <IconButton
+          icon="plus"
+          label={t('home.addExpenseA11y')}
+          onPress={() => router.push({ pathname: '/transaction', params: { type: 'expense' } })}
+        />
       ),
     });
   }, [navigation]);
@@ -237,7 +230,6 @@ export function TransactionsScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  headerActions: { flexDirection: 'row' },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingBottom: 4 },
   search: {
     flex: 1,
