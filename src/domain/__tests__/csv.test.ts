@@ -1,7 +1,7 @@
 import { makeAccount, makeCategory, makeTransaction } from '@/test/factories';
 
 import { detectDelimiter, parseCsv, serializeCsv } from '../csv';
-import { EXPORT_HEADER, transactionsToCsv } from '../csvExport';
+import { csvDateTime, EXPORT_HEADER, transactionsToCsv } from '../csvExport';
 import { guessMapping, missingRequiredFields, parseDateCell, validateImport } from '../csvImport';
 
 describe('parseCsv / serializeCsv', () => {
@@ -60,7 +60,7 @@ describe('transactionsToCsv', () => {
     const rows = parseCsv(csv);
     expect(rows[0]).toEqual([...EXPORT_HEADER]);
     expect(rows[1]).toEqual([
-      '2026-03-15T12:00:00.000Z',
+      csvDateTime('2026-03-15T12:00:00.000Z'),
       'expense',
       '12.50',
       'USD',
@@ -81,6 +81,30 @@ describe('transactionsToCsv', () => {
       [],
     );
     expect(parseCsv(csv)[1]?.[6]).toBe('\'=HYPERLINK("x")');
+  });
+});
+
+describe('csv export for spreadsheets', () => {
+  const usd = makeAccount({ id: 'usd', name: 'Wallet', currency: 'USD' });
+
+  it('writes local wall-clock dates that the importer reads back to the same moment', () => {
+    const iso = new Date(2026, 10, 24, 1, 15, 30).toISOString();
+    expect(csvDateTime(iso)).toBe('2026-11-24 01:15:30');
+    expect(parseDateCell(csvDateTime(iso), 'iso')?.toISOString()).toBe(iso);
+  });
+
+  it('leaves an unreadable date as it is', () => {
+    expect(csvDateTime('not a date')).toBe('not a date');
+  });
+
+  it('starts with a UTF-8 byte order mark so Excel shows ₹ correctly', () => {
+    const csv = transactionsToCsv(
+      [makeTransaction({ accountId: 'usd', note: '₹ chai' })],
+      [usd],
+      [],
+    );
+    expect(csv.startsWith('\uFEFFdate,type,amount')).toBe(true);
+    expect(parseCsv(csv)[1]?.[6]).toBe('₹ chai');
   });
 });
 

@@ -1,3 +1,5 @@
+import { format } from 'date-fns';
+
 import { neutralizeFormula, serializeCsv } from './csv';
 import { toMajorString } from './money';
 import type { Account, Category, Transaction } from './types';
@@ -16,6 +18,18 @@ export const EXPORT_HEADER = [
   'to_currency',
 ] as const;
 
+/**
+ * Local wall-clock time, which Excel and Sheets read as a date and the importer reads back
+ * exactly; UTC timestamps would show entries made after local midnight on the previous day.
+ */
+export function csvDateTime(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? iso : format(date, 'yyyy-MM-dd HH:mm:ss');
+}
+
+/** Tells Excel the file is UTF-8, so ₹, € and non-Latin names are not garbled. */
+const UTF8_BOM = '\uFEFF';
+
 export function transactionsToCsv(
   transactions: readonly Transaction[],
   accounts: readonly Account[],
@@ -30,7 +44,7 @@ export function transactionsToCsv(
     const toAccount = tx.toAccountId ? accountById.get(tx.toAccountId) : undefined;
     const category = tx.categoryId ? categoryById.get(tx.categoryId) : undefined;
     rows.push([
-      tx.date,
+      csvDateTime(tx.date),
       tx.type,
       currency ? toMajorString(tx.amount, currency) : String(tx.amount),
       currency,
@@ -44,5 +58,5 @@ export function transactionsToCsv(
       tx.type === 'transfer' && toAccount ? toAccount.currency : '',
     ]);
   }
-  return serializeCsv(rows);
+  return UTF8_BOM + serializeCsv(rows);
 }
