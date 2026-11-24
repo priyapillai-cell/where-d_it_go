@@ -6,6 +6,7 @@ import {
   nextReminder,
   occurrenceAt,
   reminderTime,
+  startNoLaterThanNow,
   transactionFromRule,
 } from '../recurrence';
 
@@ -148,5 +149,25 @@ it('builds transactions with a deterministic occurrence key', () => {
     recurringRuleId: 'rule-x',
     occurrenceKey: '2026-02-28T09:00:00.000Z',
     date: '2026-02-28T09:00:00.000Z',
+  });
+});
+
+describe('startNoLaterThanNow', () => {
+  const now = new Date(2026, 10, 23, 10, 0);
+
+  it('moves a start later today back to now', () => {
+    expect(startNoLaterThanNow(new Date(2026, 10, 23, 18, 30), now)).toEqual(now);
+  });
+
+  it('keeps a start earlier today', () => {
+    const start = new Date(2026, 10, 23, 8, 0);
+    expect(startNoLaterThanNow(start, now)).toBe(start);
+  });
+
+  it('keeps past and future days unchanged', () => {
+    const past = new Date(2026, 10, 20, 18, 0);
+    const future = new Date(2026, 10, 25, 9, 0);
+    expect(startNoLaterThanNow(past, now)).toBe(past);
+    expect(startNoLaterThanNow(future, now)).toBe(future);
   });
 });

@@ -3,6 +3,7 @@ import {
   addMonths,
   addWeeks,
   addYears,
+  isSameDay,
   setHours,
   setMinutes,
   startOfMinute,
@@ -11,6 +12,14 @@ import {
 import type { RecurringRule, Transaction } from './types';
 
 type ScheduleFields = Pick<RecurringRule, 'frequency' | 'interval' | 'startDate' | 'endDate'>;
+
+/**
+ * A start date picked for today keeps the rule's old time of day, which may still be ahead;
+ * pull it back to `now` so today's occurrence is recorded right away.
+ */
+export function startNoLaterThanNow(start: Date, now: Date): Date {
+  return isSameDay(start, now) && start > now ? new Date(now) : start;
+}
 
 /** Safety cap so a misconfigured rule (e.g. daily since 1970) can never stall the app. */
 export const MAX_OCCURRENCES_PER_RUN = 1000;

@@ -6,7 +6,7 @@ import { useShallow } from 'zustand/react/shallow';
 
 import { getRecurringRule } from '@/db/repositories/recurringRepository';
 import { parseAmount, toMajorString } from '@/domain/money';
-import { nextOccurrence } from '@/domain/recurrence';
+import { nextOccurrence, startNoLaterThanNow } from '@/domain/recurrence';
 import { type CategoryType, FREQUENCIES, type Frequency, type RecurringRule } from '@/domain/types';
 import { MAX_NOTE_LENGTH } from '@/domain/validation';
 import { t } from '@/i18n';
@@ -328,7 +328,7 @@ function RuleForm({ existing }: { existing: RecurringRule | null }) {
         onCancel={() => setSheet('none')}
         onConfirm={(d) => {
           if (sheet === 'end') setEndDate(d);
-          else setStartDate(d);
+          else setStartDate(startNoLaterThanNow(d, new Date()));
           setErrors((e) => ({ ...e, startDate: undefined, endDate: undefined }));
           setSheet('none');
         }}
