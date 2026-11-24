@@ -231,7 +231,7 @@ categories:
   format, then shows a review with per-row errors before importing. Rows with a negative amount
   and no type column become expenses. Unknown categories are created; up to 50,000 rows and
   10 MB per file.
-- **Excel export** also has **Sinking funds** and **Fund history** sheets when funds exist.
+- **Excel export** has a **Sinking fund transactions** sheet right after Transactions and a **Sinking fund** summary sheet at the end when the sinking fund has categories. The **CSV export** lists sinking fund entries alongside transactions with the type `fund_add` or `fund_spend` and the sinking fund category in the category column; **Import from CSV** reads them back into the sinking fund, creating missing categories.
 - **JSON backups** contain all data and are validated with a schema (including referential
   integrity) before anything is replaced.
 

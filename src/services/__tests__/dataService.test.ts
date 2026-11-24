@@ -1,12 +1,18 @@
 import { insertAccount, listAccounts } from '@/db/repositories/accountRepository';
 import { listCategories } from '@/db/repositories/categoryRepository';
+import {
+  listAllFundEntries,
+  listFunds,
+  upsertFund,
+  upsertFundEntry,
+} from '@/db/repositories/fundRepository';
 import { loadSettings, saveSettings } from '@/db/repositories/settingsRepository';
 import { insertTransaction, listAllTransactions } from '@/db/repositories/transactionRepository';
 import type { SqlDatabase } from '@/db/sqlDatabase';
 import { parseBackup } from '@/domain/backup';
 import { parseCsv } from '@/domain/csv';
 import { guessMapping, validateImport } from '@/domain/csvImport';
-import { makeAccount, makeTransaction } from '@/test/factories';
+import { makeAccount, makeFund, makeFundEntry, makeTransaction } from '@/test/factories';
 import { createTestDatabase } from '@/test/nodeDatabase';
 
 import {
@@ -51,6 +57,42 @@ it('imports CSV rows and creates each new category once', async () => {
   expect(txs.map((t) => t.amount)).toEqual([1250, 300, 10000]);
   const coffee = categories.find((c) => c.name === 'Coffee');
   expect(txs.filter((t) => t.categoryId === coffee?.id)).toHaveLength(2);
+});
+
+it('exports sinking fund entries to CSV and imports them back into the fund', async () => {
+  await upsertFund(db, makeFund({ id: 'gifts', name: 'Gifts', currency: 'USD' }));
+  await upsertFundEntry(
+    db,
+    makeFundEntry({ fundId: 'gifts', type: 'spend', amount: 2500, note: 'Card' }),
+  );
+  const csv = await exportCsv(db);
+  expect(csv).toContain('fund_spend,25.00,USD,,Gifts,Card');
+
+  await resetAllData(db, { currency: 'USD', accountName: 'Cash', categoryName: (k) => k });
+  const rows = parseCsv(csv);
+  const validation = validateImport(
+    rows,
+    guessMapping(rows[0] ?? []),
+    {
+      hasHeader: true,
+      dateFormat: 'iso',
+      decimalSeparator: '.',
+      defaultAccountId: (await listAccounts(db))[0]?.id ?? '',
+    },
+    {
+      accounts: await listAccounts(db),
+      categories: await listCategories(db),
+      funds: await listFunds(db),
+      fundCurrency: 'USD',
+    },
+  );
+  expect(validation.errors).toEqual([]);
+  expect(await importCandidates(db, [], new Date(), validation.fundCandidates)).toBe(1);
+  const funds = await listFunds(db);
+  expect(funds.map((f) => [f.name, f.currency])).toEqual([['Gifts', 'USD']]);
+  expect((await listAllFundEntries(db)).map((e) => [e.fundId, e.type, e.amount, e.note])).toEqual([
+    [funds[0]?.id, 'spend', 2500, 'Card'],
+  ]);
 });
 
 it('round-trips exports: JSON restores everything, CSV keeps a stable header', async () => {

@@ -1,4 +1,10 @@
-import { makeAccount, makeCategory, makeTransaction } from '@/test/factories';
+import {
+  makeAccount,
+  makeCategory,
+  makeFund,
+  makeFundEntry,
+  makeTransaction,
+} from '@/test/factories';
 
 import { detectDelimiter, parseCsv, serializeCsv } from '../csv';
 import { csvDateTime, EXPORT_HEADER, transactionsToCsv } from '../csvExport';
@@ -241,5 +247,76 @@ describe('CSV import', () => {
       context,
     );
     expect(result.candidates[0]).toMatchObject({ amount: 123450, type: 'expense', rowNumber: 1 });
+  });
+});
+
+describe('sinking fund rows in CSV', () => {
+  const wallet = makeAccount({ id: 'wallet', name: 'Wallet', currency: 'INR' });
+  const gifts = makeFund({ id: 'gifts', name: 'Gifts', currency: 'INR' });
+
+  it('exports fund entries between transactions in date order', () => {
+    const csv = transactionsToCsv(
+      [
+        makeTransaction({ accountId: 'wallet', amount: 10000, date: '2026-11-01T06:00:00.000Z' }),
+        makeTransaction({ accountId: 'wallet', amount: 20000, date: '2026-11-20T06:00:00.000Z' }),
+      ],
+      [wallet],
+      [],
+      {
+        funds: [gifts],
+        entries: [
+          makeFundEntry({
+            fundId: 'gifts',
+            type: 'spend',
+            amount: 150000,
+            note: 'Diwali',
+            date: '2026-11-10T06:00:00.000Z',
+          }),
+          makeFundEntry({
+            fundId: 'gifts',
+            type: 'deposit',
+            amount: 50000,
+            accountId: 'wallet',
+            date: '2026-11-15T06:00:00.000Z',
+          }),
+          makeFundEntry({ fundId: 'deleted', amount: 1 }),
+        ],
+      },
+    );
+    const rows = parseCsv(csv).slice(1);
+    expect(rows.map((r) => [r[1], r[2], r[4], r[5], r[6]])).toEqual([
+      ['expense', '100.00', 'Wallet', '', ''],
+      ['fund_spend', '1500.00', '', 'Gifts', 'Diwali'],
+      ['fund_add', '500.00', 'Wallet', 'Gifts', ''],
+      ['expense', '200.00', 'Wallet', '', ''],
+    ]);
+  });
+
+  it('imports fund rows into the sinking fund, matching or creating the category', () => {
+    const rows = parseCsv(
+      [
+        'date,type,amount,currency,account,category,note',
+        '2026-11-10 11:30:00,fund_spend,1500.00,INR,,Gifts,Diwali',
+        '2026-11-15 11:30:00,fund_add,500.00,INR,Wallet,gifts,',
+        '2026-11-16 11:30:00,fund_add,200,INR,,Vacation,',
+        '2026-11-17 11:30:00,fund_spend,50,INR,,,',
+        '2026-11-18 11:30:00,expense,75,INR,Wallet,Food,',
+      ].join('\n'),
+    );
+    const result = validateImport(
+      rows,
+      guessMapping(rows[0] ?? []),
+      { hasHeader: true, dateFormat: 'iso', decimalSeparator: '.', defaultAccountId: 'wallet' },
+      { accounts: [wallet], categories: [], funds: [gifts], fundCurrency: 'INR' },
+    );
+    expect(result.fundCandidates.map((c) => [c.type, c.amount, c.fundId, c.newFundName])).toEqual([
+      ['spend', 150000, 'gifts', null],
+      ['deposit', 50000, 'gifts', null],
+      ['deposit', 20000, null, 'Vacation'],
+    ]);
+    expect(result.fundCandidates[1]?.accountId).toBe('wallet');
+    expect(result.fundCandidates[0]?.note).toBe('Diwali');
+    expect(result.errors).toEqual([{ rowNumber: 5, code: 'missingFund', value: '' }]);
+    expect(result.candidates.map((c) => [c.type, c.amount])).toEqual([['expense', 7500]]);
   });
 });

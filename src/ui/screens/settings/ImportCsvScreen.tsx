@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 
+import { listFunds } from '@/db/repositories/fundRepository';
 import { MAX_CSV_BYTES, parseCsv } from '@/domain/csv';
 import {
   type ColumnMapping,
@@ -17,7 +18,7 @@ import {
   REQUIRED_IMPORT_FIELDS,
   validateImport,
 } from '@/domain/csvImport';
-import { assertNever } from '@/domain/types';
+import { assertNever, type TransactionType } from '@/domain/types';
 import { t } from '@/i18n';
 import { formatDate, money } from '@/i18n/format';
 import { importCandidates } from '@/services/dataService';
@@ -34,7 +35,9 @@ import { Card, ListRow, SectionTitle, SwitchRow } from '../../components/FormFie
 import { ModalHeader } from '../../components/ModalHeader';
 import { SegmentedControl } from '../../components/SegmentedControl';
 import { SelectSheet } from '../../components/SelectSheet';
+import { useDbQuery } from '../../hooks/useDbQuery';
 import { useTheme } from '../../theme/ThemeProvider';
+import type { ThemeColors } from '../../theme/theme';
 
 type Step = 'pick' | 'map' | 'review';
 type Sheet =
@@ -73,6 +76,8 @@ export function ImportCsvScreen() {
   const insets = useSafeAreaInsets();
   const accounts = useAppStore(useShallow(selectActiveAccounts));
   const categories = useAppStore((s) => s.categories);
+  const fundCurrency = useAppStore((s) => s.settings.defaultCurrency);
+  const { data: funds } = useDbQuery('import-funds', listFunds);
 
   const [step, setStep] = useState<Step>('pick');
   const [fileName, setFileName] = useState('');
@@ -101,7 +106,7 @@ export function ImportCsvScreen() {
             rows,
             mapping,
             { hasHeader, dateFormat, decimalSeparator, defaultAccountId },
-            { accounts, categories },
+            { accounts, categories, funds: funds ?? [], fundCurrency },
           )
         : null,
     [
@@ -114,8 +119,50 @@ export function ImportCsvScreen() {
       defaultAccountId,
       accounts,
       categories,
+      funds,
+      fundCurrency,
     ],
   );
+  const accountsById = new Map(accounts.map((a) => [a.id, a]));
+  const validCount = validation
+    ? validation.candidates.length + validation.fundCandidates.length
+    : 0;
+  const typeColor = (type: TransactionType | 'spend' | 'deposit'): keyof ThemeColors => {
+    switch (type) {
+      case 'expense':
+      case 'spend':
+        return 'expense';
+      case 'income':
+      case 'deposit':
+        return 'income';
+      case 'transfer':
+        return 'transfer';
+      default:
+        return assertNever(type);
+    }
+  };
+  const previewRows = validation
+    ? [
+        ...validation.candidates.map((c) => ({
+          rowNumber: c.rowNumber,
+          date: c.date,
+          label: c.note || c.newCategory?.name || t(`types.${c.type}`),
+          amount: c.type === 'expense' ? -c.amount : c.amount,
+          currency: accountsById.get(c.accountId)?.currency ?? 'USD',
+          color: typeColor(c.type),
+        })),
+        ...validation.fundCandidates.map((c) => ({
+          rowNumber: c.rowNumber,
+          date: c.date,
+          label: `${t('nav.funds')}: ${c.note || (funds?.find((f) => f.id === c.fundId)?.name ?? c.newFundName ?? '')}`,
+          amount: c.type === 'spend' ? -c.amount : c.amount,
+          currency: c.currency,
+          color: typeColor(c.type),
+        })),
+      ]
+        .sort((a, b) => a.rowNumber - b.rowNumber)
+        .slice(0, PREVIEW_ROWS)
+    : [];
 
   const onPick = async () => {
     setError(undefined);
@@ -141,10 +188,12 @@ export function ImportCsvScreen() {
   };
 
   const onImport = async () => {
-    if (!validation || validation.candidates.length === 0) return;
+    if (!validation || validCount === 0) return;
     setImporting(true);
     try {
-      const count = await write((db) => importCandidates(db, validation.candidates));
+      const count = await write((db) =>
+        importCandidates(db, validation.candidates, new Date(), validation.fundCandidates),
+      );
       router.back();
       showToast({ message: t('importCsv.done', { count }) });
     } catch (e) {
@@ -156,7 +205,6 @@ export function ImportCsvScreen() {
   };
 
   const defaultAccount = accounts.find((a) => a.id === defaultAccountId);
-  const accountsById = new Map(accounts.map((a) => [a.id, a]));
   const newCategoryCount = validation
     ? new Set(
         validation.candidates
@@ -196,12 +244,12 @@ export function ImportCsvScreen() {
                 label={
                   importing
                     ? t('importCsv.importing')
-                    : t('importCsv.importAction', { count: validation?.candidates.length ?? 0 })
+                    : t('importCsv.importAction', { count: validCount })
                 }
                 icon="check"
                 size="large"
                 loading={importing}
-                disabled={!validation || validation.candidates.length === 0}
+                disabled={validCount === 0}
                 onPress={onImport}
               />
             </View>
@@ -302,7 +350,7 @@ export function ImportCsvScreen() {
           <>
             <Card style={styles.padded}>
               <AppText variant="subtitle" color="income">
-                {t('importCsv.validRows', { count: validation.candidates.length })}
+                {t('importCsv.validRows', { count: validCount })}
               </AppText>
               {validation.errors.length > 0 ? (
                 <AppText variant="body" color="danger">
@@ -315,36 +363,23 @@ export function ImportCsvScreen() {
                 </AppText>
               ) : null}
             </Card>
-            {validation.candidates.length > 0 ? (
+            {previewRows.length > 0 ? (
               <>
                 <SectionTitle>{t('importCsv.preview')}</SectionTitle>
                 <Card style={styles.padded}>
-                  {validation.candidates.slice(0, PREVIEW_ROWS).map((c) => {
-                    const currency = accountsById.get(c.accountId)?.currency ?? 'USD';
-                    return (
-                      <View key={c.rowNumber} style={styles.previewRow}>
-                        <AppText variant="caption" color="textSecondary" style={styles.previewDate}>
-                          {formatDate(new Date(c.date), 'medium')}
-                        </AppText>
-                        <AppText variant="body" style={styles.flex} numberOfLines={1}>
-                          {c.note || c.newCategory?.name || t(`types.${c.type}`)}
-                        </AppText>
-                        <AppText
-                          variant="label"
-                          tabular
-                          color={
-                            c.type === 'expense'
-                              ? 'expense'
-                              : c.type === 'income'
-                                ? 'income'
-                                : 'transfer'
-                          }
-                        >
-                          {money(c.type === 'expense' ? -c.amount : c.amount, currency)}
-                        </AppText>
-                      </View>
-                    );
-                  })}
+                  {previewRows.map((row) => (
+                    <View key={row.rowNumber} style={styles.previewRow}>
+                      <AppText variant="caption" color="textSecondary" style={styles.previewDate}>
+                        {formatDate(new Date(row.date), 'medium')}
+                      </AppText>
+                      <AppText variant="body" style={styles.flex} numberOfLines={1}>
+                        {row.label}
+                      </AppText>
+                      <AppText variant="label" tabular color={row.color}>
+                        {money(row.amount, row.currency)}
+                      </AppText>
+                    </View>
+                  ))}
                 </Card>
               </>
             ) : null}

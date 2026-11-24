@@ -32,8 +32,8 @@ const LABELS: ExcelExportLabels = {
     monthly: 'Monthly summary',
     categories: 'By category',
     accounts: 'Accounts',
-    funds: 'Sinking funds',
-    fundHistory: 'Fund history',
+    funds: 'Sinking fund',
+    fundHistory: 'Sinking fund transactions',
   },
   columns: {
     date: 'Date',
@@ -253,7 +253,7 @@ describe('buildExcelSheets', () => {
     ]);
   });
 
-  it('adds fund summary and history sheets only when funds exist', () => {
+  it('adds the fund transactions after Transactions and the summary last, only with funds', () => {
     const withFunds = buildExcelSheets(
       {
         transactions: [],
@@ -279,17 +279,17 @@ describe('buildExcelSheets', () => {
     );
     expect(withFunds.map((s) => s.name)).toEqual([
       'Transactions',
+      'Sinking fund transactions',
       'Monthly summary',
       'By category',
       'Accounts',
-      'Sinking funds',
-      'Fund history',
+      'Sinking fund',
     ]);
-    expect(values(withFunds[4]?.rows ?? []).slice(1)).toEqual([
+    expect(values(withFunds[5]?.rows ?? []).slice(1)).toEqual([
       ['Vacation', 'INR', 100000, '', 25000, 5000, 20000, 'No'],
     ]);
     expect(
-      values(withFunds[5]?.rows ?? [])
+      values(withFunds[1]?.rows ?? [])
         .slice(1)
         .map((r) => r.slice(1)),
     ).toEqual([

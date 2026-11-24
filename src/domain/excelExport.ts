@@ -248,7 +248,11 @@ export function buildExcelSheets(
     },
   ];
   const funds = data.sinkingFunds ?? [];
-  if (funds.length > 0) sheets.push(...fundSheets(funds, data.fundEntries ?? [], labels, now));
+  if (funds.length > 0) {
+    const { summary, history } = fundSheets(funds, data.fundEntries ?? [], labels, now);
+    sheets.splice(1, 0, history);
+    sheets.push(summary);
+  }
   return sheets;
 }
 
@@ -257,7 +261,7 @@ function fundSheets(
   entries: readonly FundEntry[],
   labels: ExcelExportLabels,
   now: Date,
-): XlsxSheet[] {
+): { summary: XlsxSheet; history: XlsxSheet } {
   const col = labels.columns;
   const fundById = new Map(funds.map((f) => [f.id, f]));
   const byFund = new Map<string, FundEntry[]>();
@@ -319,18 +323,18 @@ function fundSheets(
       }),
   ];
 
-  return [
-    {
+  return {
+    summary: {
       name: labels.sheets.funds,
       headerRow: true,
       columnWidths: [22, 10, 14, 12, 14, 14, 14, 10],
       rows: summaryRows,
     },
-    {
+    history: {
       name: labels.sheets.fundHistory,
       headerRow: true,
       columnWidths: [18, 22, 12, 14, 10, 32],
       rows: historyRows,
     },
-  ];
+  };
 }

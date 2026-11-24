@@ -1,5 +1,13 @@
 import { parseAmount } from './money';
-import type { Account, Category, CategoryType, MinorUnits, TransactionType } from './types';
+import type {
+  Account,
+  Category,
+  CategoryType,
+  FundEntryType,
+  MinorUnits,
+  SinkingFund,
+  TransactionType,
+} from './types';
 
 export const IMPORT_FIELDS = [
   'date',
@@ -31,6 +39,9 @@ export interface ImportOptions {
 export interface ImportContext {
   accounts: readonly Account[];
   categories: readonly Category[];
+  funds?: readonly SinkingFund[];
+  /** Currency for sinking fund categories the import creates. */
+  fundCurrency?: string;
 }
 
 export interface ImportCandidate {
@@ -47,8 +58,24 @@ export interface ImportCandidate {
   date: string;
 }
 
+/** A sinking fund row (type `fund_add` / `fund_spend`); the category column names the fund. */
+export interface FundImportCandidate {
+  rowNumber: number;
+  type: FundEntryType;
+  amount: MinorUnits;
+  currency: string;
+  /** Null when `newFundName` should be created during import. */
+  fundId: string | null;
+  newFundName: string | null;
+  /** The account a deposit was moved from, when it names a known account in the same currency. */
+  accountId: string | null;
+  note: string;
+  date: string;
+}
+
 export type ImportErrorCode =
   | 'missingDate'
+  | 'missingFund'
   | 'invalidDate'
   | 'missingAmount'
   | 'invalidAmount'
@@ -65,6 +92,7 @@ export interface ImportRowError {
 
 export interface ImportValidation {
   candidates: ImportCandidate[];
+  fundCandidates: FundImportCandidate[];
   errors: ImportRowError[];
   totalRows: number;
 }
@@ -161,6 +189,14 @@ function parseType(raw: string): TransactionType | 'invalid' | null {
   return 'invalid';
 }
 
+function parseFundType(raw: string): FundEntryType | null {
+  const value = normalizeHeader(raw);
+  if (['fund add', 'fund deposit', 'sinking fund add', 'sinking fund deposit'].includes(value))
+    return 'deposit';
+  if (['fund spend', 'sinking fund spend'].includes(value)) return 'spend';
+  return null;
+}
+
 /** Reverses the export-time formula guard (leading apostrophe before = + - @). */
 function cleanText(raw: string, max: number): string {
   const value = raw.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').trim();
@@ -185,6 +221,7 @@ export function validateImport(
 ): ImportValidation {
   const dataRows = (options.hasHeader ? rows.slice(1) : rows).slice(0, MAX_IMPORT_ROWS);
   const candidates: ImportCandidate[] = [];
+  const fundCandidates: FundImportCandidate[] = [];
   const errors: ImportRowError[] = [];
   const defaultAccount =
     context.accounts.find((a) => a.id === options.defaultAccountId) ?? context.accounts[0];
@@ -204,6 +241,37 @@ export function validateImport(
     if (rawDate.trim() === '') return fail('missingDate', rawDate);
     const date = parseDateCell(rawDate, options.dateFormat);
     if (!date) return fail('invalidDate', rawDate);
+
+    const fundType = parseFundType(cell(row, 'type'));
+    if (fundType) {
+      const fundName = cleanText(cell(row, 'category'), MAX_NAME_LENGTH);
+      if (fundName === '') return fail('missingFund', fundName);
+      const fund = findByName(context.funds ?? [], fundName);
+      const currency = fund?.currency ?? context.fundCurrency ?? defaultAccount?.currency;
+      if (!currency) return fail('noAccount', '');
+      const rawFundAmount = cell(row, 'amount');
+      if (rawFundAmount.trim() === '') return fail('missingAmount', rawFundAmount);
+      const fundAmount = parseAmount(rawFundAmount, currency, {
+        decimalSeparator: options.decimalSeparator,
+      });
+      if (fundAmount === null || fundAmount === 0) return fail('invalidAmount', rawFundAmount);
+      const fromName = cell(row, 'account');
+      const fromAccount =
+        fromName.trim() !== '' ? findByName(context.accounts, fromName) : undefined;
+      fundCandidates.push({
+        rowNumber,
+        type: fundType,
+        amount: Math.abs(fundAmount),
+        currency,
+        fundId: fund?.id ?? null,
+        newFundName: fund ? null : fundName,
+        accountId:
+          fundType === 'deposit' && fromAccount?.currency === currency ? fromAccount.id : null,
+        note: cleanText(cell(row, 'note'), MAX_NOTE_LENGTH),
+        date: date.toISOString(),
+      });
+      return;
+    }
 
     const accountName = cell(row, 'account');
     const account =
@@ -275,5 +343,5 @@ export function validateImport(
     });
   });
 
-  return { candidates, errors, totalRows: dataRows.length };
+  return { candidates, fundCandidates, errors, totalRows: dataRows.length };
 }
